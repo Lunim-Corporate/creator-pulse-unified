@@ -29,19 +29,14 @@ export class QualityMetrics {
   ): QualityScore {
     const flags: QualityFlag[] = [];
     
-    // 1. Completeness Check (0-20 points)
     const completeness = this.checkCompleteness(result, flags);
     
-    // 2. Evidence Quality (0-25 points)
     const evidenceQuality = this.checkEvidenceQuality(result, flags);
     
-    // 3. Actionability (0-20 points)
     const actionability = this.checkActionability(result, flags);
     
-    // 4. Brand Alignment (0-20 points)
     const brandAlignment = this.checkBrandAlignment(result, clear, flags);
     
-    // 5. Ethical Compliance (0-15 points)
     const ethicalCompliance = this.checkEthicalCompliance(result, flags);
     
     const overall = Math.round(
@@ -131,11 +126,10 @@ export class QualityMetrics {
   }
 
   private static checkEvidenceQuality(result: AnalysisResult, flags: QualityFlag[]): number {
-    let score = 25; // Start with full score, deduct for issues
+    let score = 25; 
     
     const content = JSON.stringify(result);
 
-    // Check for unverified statistics
     const percentRegex = /\b(\d+)%/g;
     const percentMatches = content.match(percentRegex) || [];
     
@@ -148,7 +142,6 @@ export class QualityMetrics {
       });
     }
 
-    // Check for unsupported superlatives
     const superlatives = [
       /\b(best|greatest|leading|top|#1|number one)\b/gi,
       /\b(guaranteed|certain|definitely|absolutely)\b/gi,
@@ -203,7 +196,7 @@ export class QualityMetrics {
 
     recommendations.forEach((rec, idx) => {
       const hasSpecifics = (
-        rec.recommendation.length > 50 && // Not too vague
+        rec.recommendation.length > 50 && 
         rec.reasoning.length > 50 &&
         rec.expected_outcome.length > 30
       );
@@ -243,7 +236,7 @@ export class QualityMetrics {
     clear: ClearPrompt | undefined,
     flags: QualityFlag[]
   ): number {
-    if (!clear) return 15; // Can't check without CLEAR context
+    if (!clear) return 15; 
 
     let score = 20;
     const content = JSON.stringify(result).toLowerCase();
@@ -261,9 +254,7 @@ export class QualityMetrics {
       });
     }
 
-    // Check voice alignment (basic check)
     const voiceKeywords = clear.context.voice.toLowerCase().split(',').map(v => v.trim());
-    // This is a simplified check - in production, you'd use more sophisticated NLP
     
     return Math.max(0, score);
   }
@@ -272,7 +263,6 @@ export class QualityMetrics {
     let score = 15;
     const content = JSON.stringify(result).toLowerCase();
 
-    // Check for potentially exclusionary language
     const problematicTerms = [
       'guys', 'man-hours', 'master/slave', 'blacklist', 'whitelist',
       'crazy', 'insane', 'lame', 'dumb', 'stupid'
@@ -289,7 +279,6 @@ export class QualityMetrics {
       }
     });
 
-    // Check for privacy concerns
     if (content.includes('email') || content.includes('phone')) {
       flags.push({
         severity: 'info',
@@ -304,7 +293,6 @@ export class QualityMetrics {
   private static generateRecommendations(flags: QualityFlag[], overall: number): string[] {
     const recommendations: string[] = [];
 
-    // Priority recommendations based on errors
     const errors = flags.filter(f => f.severity === 'error');
     if (errors.length > 0) {
       recommendations.push('• Critical: Address all errors before using this analysis');
@@ -313,7 +301,6 @@ export class QualityMetrics {
       });
     }
 
-    // Quality-based recommendations
     if (overall < 50) {
       recommendations.push(' • Quality score is low - consider re-running analysis with refined prompt');
     } else if (overall < 70) {
@@ -322,7 +309,6 @@ export class QualityMetrics {
       recommendations.push(' • Excellent quality - analysis is ready for use');
     }
 
-    // Specific improvement suggestions
     const evidenceWarnings = flags.filter(f => f.category === 'evidence');
     if (evidenceWarnings.length > 0) {
       recommendations.push(' • Add more supporting examples and verify all statistics');

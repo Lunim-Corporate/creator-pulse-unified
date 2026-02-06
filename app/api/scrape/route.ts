@@ -1,4 +1,3 @@
-// UPDATE app/api/scrape/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { getScraperFactory } from "@/lib/scrapers/ScraperFactory";
@@ -8,12 +7,12 @@ interface ScrapeQueries {
   youtube?: string[];
   reddit?: string[];
   facebook?: string[];
-  perplexity?: string[]; // NEW: Optional Perplexity queries
+  perplexity?: string[]; 
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { queries, mode }: { queries: ScrapeQueries; mode?: 'tabb' | 'lunim' } = await req.json();
+    const { queries, mode }: { queries: ScrapeQueries; mode?: 'tabb' | 'lunim' | 'general' } = await req.json();
 
     if (!queries) {
       return NextResponse.json(
@@ -30,13 +29,10 @@ export async function POST(req: NextRequest) {
     console.log('Facebook queries:', queries.facebook?.length || 0);
     console.log('Perplexity queries:', queries.perplexity?.length || 'auto (will use YouTube queries)');
 
-    // Get factory with mode support
     const factory = getScraperFactory(mode);
     
-    // Show status report
     console.log(factory.getStatusReport());
 
-    // Scrape all platforms (including Perplexity)
     const result = await factory.scrapeAll(queries);
 
     console.log('\n' + '='.repeat(60));
@@ -52,7 +48,6 @@ export async function POST(req: NextRequest) {
       console.log(`Failures: ${result.failures.join(', ')}`);
     }
     
-    // Quality distribution
     const qualityBreakdown = {
       verified: result.posts.filter(p => p.metadata?.verified).length,
       multiSource: result.posts.filter(p => p._sources && p._sources.length > 1).length,
@@ -65,7 +60,6 @@ export async function POST(req: NextRequest) {
     
     console.log('='.repeat(60) + '\n');
 
-    // Check if we got any data
     if (result.posts.length === 0) {
       console.error('✗ No data collected from any platform');
       return NextResponse.json(
@@ -79,7 +73,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build enhanced response
+
+    console.log('\n PLATFORM BREAKDOWN:');
+    console.log('YouTube posts:', result.posts.filter(p => p.platform === 'youtube').length);
+    console.log('Reddit posts:', result.posts.filter(p => p.platform === 'reddit').length);
+    console.log('Facebook posts:', result.posts.filter(p => p.platform === 'facebook').length);
+    console.log('Perplexity posts:', result.posts.filter(p => p.metadata?.source === 'perplexity').length);
+
+    const redditSample = result.posts.find(p => p.platform === 'reddit');
+    if (redditSample) {
+      console.log('\nSample Reddit post:', {
+        id: redditSample.id,
+        creator: redditSample.creator_handle,
+        content: redditSample.content.slice(0, 100)
+      });
+    } else {
+      console.log('\n NO REDDIT POSTS FOUND');
+    }
     const response = {
       posts: result.posts,
       failures: result.failures,

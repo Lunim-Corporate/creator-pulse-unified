@@ -163,7 +163,7 @@ export class RedditRSSScraper extends BaseScraper {
 
   private cleanHTML(text: string): string {
     return text
-      .replace(/<[^>]+>/g, '') // Remove HTML tags
+      .replace(/<[^>]+>/g, '') 
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&amp;/g, '&')
@@ -174,21 +174,18 @@ export class RedditRSSScraper extends BaseScraper {
   }
 
   private extractTextFromDescription(description: string): string {
-    // Remove HTML and extract meaningful text
     let text = this.cleanHTML(description);
     
-    // Remove common Reddit metadata
     text = text.replace(/submitted by.*?to.*?r\/\w+/gi, '');
     text = text.replace(/\d+\s+points?/gi, '');
     text = text.replace(/\d+\s+comments?/gi, '');
     text = text.replace(/\[link\]/gi, '');
     text = text.replace(/\[comments\]/gi, '');
     
-    return text.trim().slice(0, 500); // Limit length
+    return text.trim().slice(0, 500); 
   }
 
   private generateId(link: string): string {
-    // Generate a simple hash from the link
     let hash = 0;
     for (let i = 0; i < link.length; i++) {
       const char = link.charCodeAt(i);

@@ -51,18 +51,15 @@ export abstract class BaseScraper {
   }
 
   protected shouldRetry(error: any, attempt: number): boolean {
-    // Don't retry on client errors
     const status = error?.status || error?.statusCode;
     if (status === 400 || status === 401 || status === 403 || status === 404) {
       return false;
     }
 
-    // Don't retry if max attempts reached
     if (attempt >= this.retryConfig.maxRetries) {
       return false;
     }
 
-    // Retry on rate limits, server errors, network errors
     return true;
   }
 

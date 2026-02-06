@@ -24,7 +24,6 @@ export function ContentPerformanceInsights({ insights }: Props) {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Title Section */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -33,7 +32,6 @@ export function ContentPerformanceInsights({ insights }: Props) {
         <div className="h-px flex-1 bg-border"></div>
       </div>
 
-      {/* Insight List */}
       <div className="space-y-4">
         {insights.map((insight, i) => {
           const isOpen = openIndex === i;
@@ -48,12 +46,10 @@ export function ContentPerformanceInsights({ insights }: Props) {
                   : "border-border hover:border-border/60"
               }`}
             >
-              {/* Header */}
               <button
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 className="w-full px-6 py-4 flex items-center gap-4 text-left hover:bg-surface-elevated transition-colors"
               >
-                {/* Ranking Badge */}
                 <div className="min-w-[40px] h-[40px] flex items-center justify-center rounded-full bg-primary/10 border border-primary/20 text-primary font-bold">
                   #{i + 1}
                 </div>
@@ -84,7 +80,6 @@ export function ContentPerformanceInsights({ insights }: Props) {
                 )}
               </button>
 
-              {/* Expanded Section */}
               {isOpen && (
                 <div className="px-6 py-5 space-y-6 bg-muted/20 border-t border-border animate-slide-up">
                   {isEnriched && (
@@ -97,7 +92,6 @@ export function ContentPerformanceInsights({ insights }: Props) {
                     </div>
                   )}
 
-                  {/* Supporting Examples */}
                   <div>
                     <h4 className="text-sm font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                       <MessageSquare className="w-4 h-4 text-accent" />
@@ -119,7 +113,6 @@ export function ContentPerformanceInsights({ insights }: Props) {
                     </div>
                   </div>
 
-                  {/* Why It Performed */}
                   <div>
                     <h4 className="text-sm font-bold text-foreground uppercase tracking-wider mb-2">
                       Why This Worked

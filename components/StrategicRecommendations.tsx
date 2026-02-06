@@ -14,7 +14,6 @@ export function StrategicRecommendations({ recommendations, isEnriched }: Strate
 
   return (
     <div className="space-y-8 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <div className="flex items-center gap-3">
@@ -31,7 +30,6 @@ export function StrategicRecommendations({ recommendations, isEnriched }: Strate
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* MAIN STRATEGY CARD */}
         <div className="lg:col-span-2 bg-surface border border-primary/20 rounded-xl p-6 hover:border-primary/40 transition-all duration-300">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -61,7 +59,6 @@ export function StrategicRecommendations({ recommendations, isEnriched }: Strate
           )}
         </div>
 
-        {/* RISKS / WARNINGS */}
         <div className="space-y-6">
           <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-5">
             <div className="flex items-center gap-3 mb-4">
@@ -83,7 +80,6 @@ export function StrategicRecommendations({ recommendations, isEnriched }: Strate
             </ul>
           </div>
 
-          {/* ACTION ITEMS CHECKLIST */}
           <div className="bg-muted/20 border border-border rounded-xl p-5">
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle2 className="w-5 h-5 text-success" />

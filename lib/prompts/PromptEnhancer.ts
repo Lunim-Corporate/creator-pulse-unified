@@ -9,7 +9,7 @@ export class PromptEnhancer {
     this.enhancer = new ClearFrameworkEnhancer();
   }
 
-  async enhancePrompt(rawPrompt: string, mode: 'tabb' | 'lunim'): Promise<ClearPrompt> {
+  async enhancePrompt(rawPrompt: string, mode: 'tabb' | 'lunim' | 'general'): Promise<ClearPrompt> {
     return this.enhancer.enhancePrompt(rawPrompt, mode);
   }
 }

@@ -21,18 +21,28 @@ Focus: Creative technology, AI systems, design thinking, brand narrative, long-t
 
 You ALWAYS return strictly valid JSON with strategic depth.`;
 
+const GENERAL_BASE_PROMPT = `You are Creator Pulse in General mode.
+
+Tone: Neutral, adaptable, data-driven
+Focus: Cross-platform creator insights, general content analysis, universal creator trends
+
+You ALWAYS return strictly valid JSON with comprehensive insights.`;
+
 const RESPONSE_SCHEMA = `
 
 RESPONSE SCHEMA (REQUIRED):
 {
   "content_performance_insights": [
     {
-      "topic": "clear topic name",
-      "why_it_performed": "detailed analysis",
+      "topic": "Specific topic from actual posts (e.g., 'Color Grading Workflow for Indie Films')",
+      "why_it_performed": "Analysis based on actual engagement metrics from the posts",
       "supporting_examples": [
-        { "title": "example title", "link": "URL" }
+        { 
+          "title": "EXACT title from a real YouTube video or Reddit post", 
+          "link": "ACTUAL URL from the scraped posts" 
+        }
       ],
-      "engagement_pattern": "pattern description"
+      "engagement_pattern": "Actual pattern observed in the data"
     }
   ],
   "audience_analysis": {
@@ -88,21 +98,109 @@ RESPONSE SCHEMA (REQUIRED):
 }
 
 CRITICAL REQUIREMENTS:
-- content_performance_insights: minimum 3, each with 5-10 supporting_examples
-- strategic_recommendations: minimum 3
+- content_performance_insights: minimum 5, each with 5-10 supporting_examples
+- strategic_recommendations: minimum 4
 - automation_spots: minimum 2
 - engagement_targets: use provided targets, enrich with example_outreach
 - example_outreach must reference the creator's specific post
 - Never invent data not present in source material
+- Each insight MUST be derived from ACTUAL scraped posts provided below
+- The "topic" should be SPECIFIC (not generic like "Video Production Tips")
+- supporting_examples MUST use REAL titles and REAL links from the scraped posts
+- You MUST include 5-10 supporting_examples per insight, all from actual posts
+- DO NOT invent video titles or URLs
+- If a post has high engagement, analyze WHY based on the content
+
+EXAMPLE OF GOOD INSIGHT:
+{
+  "topic": "DaVinci Resolve vs Premiere Pro Performance Comparison",
+  "why_it_performed": "Video received 15K views and 250 comments because it provided side-by-side speed tests with actual render times",
+  "supporting_examples": [
+    {
+      "title": "DaVinci Resolve 18 vs Premiere Pro 2024 - Speed Test",
+      "link": "https://youtube.com/watch?v=abc123"
+    },
+    
+  ],
+  "engagement_pattern": "Technical comparison videos with quantifiable results drive comment discussions"
+}
+
+EXAMPLE OF BAD INSIGHT (DO NOT DO THIS):
+{
+  "topic": "Video Editing Tips",
+  "why_it_performed": "People like tips",
+  "supporting_examples": [
+    {
+      "title": "Industry Source 1",
+      "link": "https://www.perplexity.ai"
+    }
+  ]
+}
 `;
 
 export class AnalysisPromptBuilder {
+  private static smartSamplePosts(posts: any[], targetCount: number): any[] {
+    if (posts.length <= targetCount) {
+      console.log(`Using all ${posts.length} posts (within limit)`);
+      return posts;
+    }
+    
+    console.log(`\n Smart Sampling: ${posts.length} posts → ${targetCount} posts`);
+    
+    const verified = posts.filter(p => 
+      p.metadata?.verified || p._sources?.includes('perplexity')
+    );
+    
+    const highQuality = posts.filter(p => 
+      !p.metadata?.verified && 
+      !p._sources?.includes('perplexity') &&
+      (p._qualityScore || 0) > 70
+    );
+    
+    const multiSource = posts.filter(p => 
+      p._sources && p._sources.length > 1 &&
+      !verified.includes(p) &&
+      !highQuality.includes(p)
+    );
+    
+    const rest = posts.filter(p => 
+      !verified.includes(p) && 
+      !highQuality.includes(p) &&
+      !multiSource.includes(p)
+    );
+    
+    const verifiedQuota = Math.min(verified.length, Math.floor(targetCount * 0.4)); 
+    const highQualityQuota = Math.min(highQuality.length, Math.floor(targetCount * 0.3)); 
+    const multiSourceQuota = Math.min(multiSource.length, Math.floor(targetCount * 0.15)); 
+    const restQuota = targetCount - verifiedQuota - highQualityQuota - multiSourceQuota; 
+    
+    const selected = [
+      ...verified.slice(0, verifiedQuota),
+      ...highQuality.slice(0, highQualityQuota),
+      ...multiSource.slice(0, multiSourceQuota),
+      ...rest.slice(0, restQuota)
+    ];
+    
+    console.log(`  ✓ ${verifiedQuota} Perplexity-verified (${verified.length} available)`);
+    console.log(`  ✓ ${highQualityQuota} High-quality (${highQuality.length} available)`);
+    console.log(`  ✓ ${multiSourceQuota} Multi-source (${multiSource.length} available)`);
+    console.log(`  ✓ ${restQuota} Other posts (${rest.length} available)`);
+    console.log(`  = ${selected.length} total posts selected\n`);
+    
+    return selected.slice(0, targetCount);
+  }
+
+  
   static buildSystemPrompt(
-    mode: 'tabb' | 'lunim',
+    mode: 'tabb' | 'lunim' | 'general',
     clearContext?: ClearPrompt,
     enrichedData?: EnrichedData
   ): string {
-    let prompt = mode === 'tabb' ? TABB_BASE_PROMPT : LUNIM_BASE_PROMPT;
+     let prompt = mode === 'tabb' 
+    ? TABB_BASE_PROMPT 
+    : mode === 'lunim'
+    ? LUNIM_BASE_PROMPT
+    : GENERAL_BASE_PROMPT;
     
     prompt += RESPONSE_SCHEMA;
 
@@ -138,7 +236,6 @@ export class AnalysisPromptBuilder {
       section += '\n';
     }
 
-    // Verified facts
     if (enriched.verifiedFacts.length > 0) {
       section += `VERIFIED FACTS:\n`;
       enriched.verifiedFacts.slice(0, 10).forEach((fact, idx) => {
@@ -170,73 +267,84 @@ export class AnalysisPromptBuilder {
 
  
 
-  static buildUserMessages(
-    posts: any[],
-    engagementTargets: any[],
-    userPrompt?: string
-  ): Array<{ role: 'user'; content: string }> {
-    const messages: Array<{ role: 'user'; content: string }> = [];
+static buildUserMessages(
+  posts: any[],
+  engagementTargets: any[],
+  userPrompt?: string
+): Array<{ role: 'user'; content: string }> {
+  const messages: Array<{ role: 'user'; content: string }> = [];
 
+  const limitedTargets = engagementTargets.slice(0, 30); 
+
+  messages.push({
+    role: 'user',
+    content: `PRE-EXTRACTED ENGAGEMENT TARGETS:
+
+CRITICAL: You MUST return AT LEAST ${Math.min(limitedTargets.length, 20)} engagement targets.
+These targets have been pre-identified and ranked by relevance to the mode.
+Return UP TO ${limitedTargets.length} targets maximum.
+
+Your job is to enrich each with example_outreach that:
+- References the specific post/comment
+- Matches platform norms (YouTube comment style, Reddit reply style, etc.)
+- Is 2-3 sentences maximum
+- Does NOT include links or sales language
+
+${JSON.stringify(limitedTargets, null, 2)}`
+  });
+
+  if (userPrompt) {
     messages.push({
       role: 'user',
-      content: `PRE-EXTRACTED ENGAGEMENT TARGETS:
+      content: `RESEARCH INTENT: ${userPrompt}
 
-  CRITICAL: You MUST return AT LEAST ${Math.max(engagementTargets.length, 10)} engagement targets.
-  These targets have been pre-identified and ranked by relevance to the mode.
-  DO NOT reduce the count - maintain all ${engagementTargets.length} targets.
-
-  Your job is to enrich each with example_outreach that:
-  - References the specific post/comment
-  - Matches platform norms (YouTube comment style, Reddit reply style, etc.)
-  - Is 2-3 sentences maximum
-  - Does NOT include links or sales language
-
-  ${JSON.stringify(engagementTargets, null, 2)}`
+Focus your analysis on this specific research question while following all C.L.E.A.R. guidelines.`
     });
-
-    if (userPrompt) {
-      messages.push({
-        role: 'user',
-        content: `RESEARCH INTENT: ${userPrompt}
-
-  Focus your analysis on this specific research question while following all C.L.E.A.R. guidelines.`
-      });
-    }
-
-    const limitedPosts = posts.slice(0, 100);
-    const postsText = limitedPosts
-      .map(p => {
-        const engagementInfo = p.engagement 
-          ? `Engagement: ${JSON.stringify(p.engagement)}`
-          : '';
-        
-        return `[${p.platform.toUpperCase()}] @${p.creator_handle}
-  Title/Topic: ${p.content.split('\n')[0]}
-  Content: ${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}
-  Link: ${p.post_link}
-  ${engagementInfo}
-  Posted: ${p.timestamp}`;
-      })
-      .join('\n\n---\n\n');
-
-    messages.push({
-      role: 'user',
-      content: `SCRAPED POSTS (${posts.length} total, showing ${limitedPosts.length}):
-
-  ${postsText}
-
-  Analyze these posts following the response schema and all quality guidelines.
-  Base all insights on this actual content - do not invent data.
-
-  REMINDER: Return AT LEAST ${Math.max(engagementTargets.length, 10)} engagement targets with enriched outreach messages.`
-    });
-
-    return messages;
   }
 
+  const limitedPosts = this.smartSamplePosts(posts, 50);
+  
+  const postsText = limitedPosts
+    .map(p => {
+      const engagementInfo = p.engagement 
+        ? `Engagement: ${JSON.stringify(p.engagement)}`
+        : '';
+      
+      const qualityIndicators = [];
+      if (p.metadata?.verified) qualityIndicators.push('✓ Perplexity Verified');
+      if (p._sources && p._sources.length > 1) qualityIndicators.push(`✓ Multi-source (${p._sources.join(', ')})`);
+      if (p._qualityScore && p._qualityScore > 70) qualityIndicators.push(`✓ High Quality (${p._qualityScore})`);
+      
+      const qualityBadge = qualityIndicators.length > 0 
+        ? `\nQuality: ${qualityIndicators.join(' | ')}`
+        : '';
+      
+      return `[${p.platform.toUpperCase()}] @${p.creator_handle}
+Title/Topic: ${p.content.split('\n')[0]}
+Content: ${p.content.slice(0, 500)}${p.content.length > 500 ? '...' : ''}
+Link: ${p.post_link}
+${engagementInfo}${qualityBadge}
+Posted: ${p.timestamp}`;
+    })
+    .join('\n\n---\n\n');
+
+  messages.push({
+    role: 'user',
+    content: `SCRAPED POSTS (${posts.length} total, showing ${limitedPosts.length} intelligently sampled):
+
+${postsText}
+
+Analyze these posts following the response schema and all quality guidelines.
+Base all insights on this actual content - do not invent data.
+
+REMINDER: Return ${Math.min(limitedTargets.length, 20)}-${limitedTargets.length} engagement targets with enriched outreach messages.`
+  });
+
+  return messages;
+}
     
     static buildCompleteMessages(
-      mode: 'tabb' | 'lunim',
+      mode: 'tabb' | 'lunim' | 'general',
       posts: any[],
       engagementTargets: any[],
       clearContext?: ClearPrompt,

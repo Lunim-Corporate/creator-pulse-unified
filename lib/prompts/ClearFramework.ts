@@ -1,4 +1,3 @@
-
 import OpenAI from 'openai';
 import { API_CONFIG } from '../config/api.config';
 
@@ -37,7 +36,7 @@ export interface ClearPrompt {
 
 interface CompanyProfile {
   name: string;
-  mode: 'tabb' | 'lunim';
+  mode: 'tabb' | 'lunim' | 'general'; 
   mission: string;
   targetMarket: string[];
   brandVoice: {
@@ -98,7 +97,7 @@ export class ClearFrameworkEnhancer {
     this.openai = new OpenAI({ apiKey: API_CONFIG.openai.apiKey });
   }
 
-  async enhancePrompt(rawPrompt: string, mode: 'tabb' | 'lunim'): Promise<ClearPrompt> {
+  async enhancePrompt(rawPrompt: string, mode: 'tabb' | 'lunim' | 'general'): Promise<ClearPrompt> { 
     const companyContext = this.getCompanyContext(mode);
     const systemPrompt = this.buildEnhancementPrompt(companyContext);
 
@@ -121,7 +120,7 @@ export class ClearFrameworkEnhancer {
     }
   }
 
-  private getCompanyContext(mode: 'tabb' | 'lunim'): CompanyProfile {
+  private getCompanyContext(mode: 'tabb' | 'lunim' | 'general'): CompanyProfile { 
     const profiles: Record<string, CompanyProfile> = {
       tabb: {
         name: 'Tabb',
@@ -174,6 +173,32 @@ export class ClearFrameworkEnhancer {
           ]
         },
         competitivePosition: 'Strategic innovation partner (vs. execution-only agencies)'
+      },
+      general: { 
+        name: 'Creator Pulse',
+        mode: 'general',
+        mission: 'Provide comprehensive creator insights across platforms and industries',
+        targetMarket: [
+          'Content creators',
+          'Digital professionals',
+          'Social media managers',
+          'Marketing teams',
+          'Influencers',
+          'Multi-platform creators'
+        ],
+        brandVoice: {
+          tone: ['neutral', 'data-driven', 'adaptable', 'professional', 'informative'],
+          avoidTerms: ['biased', 'promotional', 'platform-exclusive', 'narrow-focused'],
+          preferredFraming: [
+            'Cross-platform insights',
+            'Data-driven recommendations',
+            'Universal creator principles',
+            'Broad audience understanding',
+            'Platform-agnostic strategies',
+            'Inclusive creator community'
+          ]
+        },
+        competitivePosition: 'Universal creator intelligence platform (vs. platform-specific tools)'
       }
     };
 
@@ -278,10 +303,9 @@ Create a comprehensive C.L.E.A.R. framework that:
 Be specific and actionable.`;
   }
 
-  private validateAndEnrich(prompt: any, mode: 'tabb' | 'lunim'): ClearPrompt {
+  private validateAndEnrich(prompt: any, mode: 'tabb' | 'lunim' | 'general'): ClearPrompt { 
     const defaults = this.getDefaultClear('', mode);
     
-    // Merge with defaults to ensure all fields exist
     return {
       context: {
         ...defaults.context,
@@ -307,7 +331,7 @@ Be specific and actionable.`;
     };
   }
 
-  private getDefaultClear(rawPrompt: string, mode: 'tabb' | 'lunim'): ClearPrompt {
+  private getDefaultClear(rawPrompt: string, mode: 'tabb' | 'lunim' | 'general'): ClearPrompt {
     const company = this.getCompanyContext(mode);
     
     const defaults: Record<string, Partial<ClearPrompt>> = {
@@ -389,7 +413,6 @@ Be specific and actionable.`;
         }
       },
       lunim: {
-        // Similar structure but with Lunim-specific defaults
         context: {
           companyProfile: company,
           researchObjective: {
@@ -465,15 +488,94 @@ Be specific and actionable.`;
             actionableInsights: true
           }
         }
+      },
+      general: { 
+        context: {
+          companyProfile: company,
+          researchObjective: {
+            primary: rawPrompt || 'Understand creator trends and audience insights across platforms',
+            secondary: ['Identify content opportunities', 'Find engagement patterns', 'Discover growth strategies'],
+            successMetrics: ['Insight breadth', 'Cross-platform applicability', 'Actionable recommendations'],
+            expectedOutcomes: ['Platform trends', 'Audience behaviors', 'Content strategies', 'Growth opportunities']
+          },
+          audienceProfile: {
+            primarySegments: ['Content creators', 'Digital professionals', 'Social media managers'],
+            secondarySegments: ['Influencers', 'Marketing teams', 'Brand managers'],
+            painPoints: ['Multi-platform management', 'Audience growth', 'Content consistency', 'Engagement optimization'],
+            motivations: ['Audience reach', 'Platform success', 'Content performance', 'Community building'],
+            behaviors: ['Multi-platform presence', 'Data-driven decisions', 'Trend awareness', 'Community engagement']
+          },
+          platformStrategy: {
+            primary: ['YouTube', 'Reddit', 'Facebook'],
+            contentTypes: {
+              youtube: ['vlogs', 'tutorials', 'reviews', 'entertainment'],
+              reddit: ['discussions', 'questions', 'community posts'],
+              facebook: ['updates', 'community posts', 'live streams']
+            },
+            engagementApproach: {
+              youtube: 'Comment on trending content and community discussions',
+              reddit: 'Participate in creator-focused discussions',
+              facebook: 'Engage with creator groups and communities'
+            }
+          }
+        },
+        limits: {
+          dataQuality: {
+            minSourceAge: '6 months',
+            preferredSources: ['creator posts', 'community discussions', 'platform data'],
+            excludedSources: ['promotional spam', 'fake engagement', 'outdated trends'],
+            verificationRequired: true
+          },
+          ethicalBoundaries: {
+            inclusiveLanguage: true,
+            privacyRespecting: true,
+            competitorRespect: true,
+            transparencyCommitment: true,
+            noDarkPatterns: true
+          },
+          forbiddenClaims: [
+            'Platform-biased recommendations',
+            'Unverified growth promises',
+            'Exclusionary statements',
+            'Unsubstantiated trends'
+          ]
+        },
+        evidence: {
+          requiredSources: 3,
+          citationRequired: true,
+          verificationLevel: 'medium' as const
+        },
+        acceptanceCriteria: {
+          minimumInsights: 5,
+          minimumEngagementTargets: 15,
+          qualityThreshold: 0.7
+        },
+        review: {
+          selfCheckQuestions: [
+            'Are insights applicable across platforms?',
+            'Do recommendations avoid platform bias?',
+            'Are engagement targets diverse?',
+            'Is data current and representative?'
+          ],
+          validationSteps: [
+            'Verify cross-platform relevance',
+            'Check for platform bias',
+            'Validate audience diversity',
+            'Ensure inclusive language'
+          ],
+          outputFormat: {
+            structure: ['trends', 'audience insights', 'platform strategies', 'engagement opportunities', 'recommendations'],
+            detailLevel: 'detailed' as const,
+            actionableInsights: true
+          }
+        }
       }
     };
 
     return defaults[mode] as ClearPrompt;
   }
 
-  /**
-   * Generate a prompt summary for the LLM
-   */
+  
   generatePromptSummary(clear: ClearPrompt): string {
     return `
 RESEARCH FRAMEWORK (C.L.E.A.R.)

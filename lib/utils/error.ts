@@ -1,4 +1,3 @@
-// lib/utils/errors.ts
 export class BaseError extends Error {
   constructor(
     message: string,

@@ -25,7 +25,6 @@ export function EnrichmentStatus({ metadata }: EnrichmentStatusProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Processing Time */}
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <Clock className="w-4 h-4 text-blue-600" />
@@ -38,7 +37,6 @@ export function EnrichmentStatus({ metadata }: EnrichmentStatusProps) {
               </div>
             </div>
 
-            {/* Posts Analyzed */}
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
                 <TrendingUp className="w-4 h-4 text-green-600" />
@@ -51,7 +49,6 @@ export function EnrichmentStatus({ metadata }: EnrichmentStatusProps) {
               </div>
             </div>
 
-            {/* Perplexity Status */}
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${
                 metadata.perplexityUsed 
@@ -70,7 +67,6 @@ export function EnrichmentStatus({ metadata }: EnrichmentStatusProps) {
               </div>
             </div>
 
-            {/* Mode */}
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <CheckCircle2 className="w-4 h-4 text-amber-600" />
@@ -84,7 +80,6 @@ export function EnrichmentStatus({ metadata }: EnrichmentStatusProps) {
             </div>
           </div>
 
-          {/* Enrichment Details */}
           {metadata.perplexityUsed && metadata.enrichmentSources.length > 0 && (
             <div className="mt-4 pt-4 border-t border-violet-500/20">
               <p className="text-xs text-violet-700 leading-relaxed">

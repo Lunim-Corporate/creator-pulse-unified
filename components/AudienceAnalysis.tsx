@@ -26,7 +26,6 @@ export function AudienceAnalysis({ audience_analysis, isEnriched }: AudienceAnal
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <div className="flex items-center gap-3">
@@ -44,7 +43,6 @@ export function AudienceAnalysis({ audience_analysis, isEnriched }: AudienceAnal
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Big stat card */}
         <div className="col-span-1 lg:col-span-2 bg-surface border border-border rounded-xl p-6 flex items-center gap-6">
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
             <Zap className="w-7 h-7 text-primary" />
@@ -79,9 +77,7 @@ export function AudienceAnalysis({ audience_analysis, isEnriched }: AudienceAnal
           </div>
         </div>
 
-        {/* Sentiment & Interest Drivers column */}
         <div className="space-y-4">
-          {/* Sentiment */}
           <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-success/10 border border-success/20">
@@ -98,7 +94,6 @@ export function AudienceAnalysis({ audience_analysis, isEnriched }: AudienceAnal
             </div>
           </div>
 
-          {/* Interest Drivers */}
           <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="text-xs font-semibold uppercase text-muted-foreground">

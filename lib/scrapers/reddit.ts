@@ -87,7 +87,7 @@ export class RedditScraper extends BaseScraper {
 
     const data = (await response.json()) as RedditAuthResponse;
     this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + 3600000; // 1 hour
+    this.tokenExpiry = Date.now() + 3600000; 
 
     return this.accessToken;
   }

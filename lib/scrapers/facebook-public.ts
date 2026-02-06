@@ -97,20 +97,6 @@ export class FacebookPublicScraper extends BaseScraper {
   }
 
   private async tryScrapingService(pageId: string, limit: number): Promise<ScrapedPost[]> {
-    // If you set up a scraping service (like ScrapingBee, Apify, etc.)
-    // You can call it here
-    
-    // Example with a hypothetical scraping service:
-    // const apiKey = process.env.SCRAPING_SERVICE_API_KEY;
-    // if (!apiKey) throw new Error('No scraping service configured');
-    
-    // const response = await fetch(`https://scraping-service.com/facebook`, {
-    //   method: 'POST',
-    //   headers: { 'Authorization': `Bearer ${apiKey}` },
-    //   body: JSON.stringify({ pageId, limit })
-    // });
-    
-    // return await response.json();
     
     throw new Error('Scraping service not configured');
   }
@@ -118,7 +104,6 @@ export class FacebookPublicScraper extends BaseScraper {
   private parseRSS(xml: string, pageId: string, limit: number): ScrapedPost[] {
     const posts: ScrapedPost[] = [];
     
-    // Simple RSS parsing
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     const items = xml.match(itemRegex) || [];
 
@@ -159,7 +144,7 @@ export class FacebookPublicScraper extends BaseScraper {
       post_link: link,
       timestamp: pubDate || new Date().toISOString(),
       engagement: {
-        likes: 0, // Not available without API
+        likes: 0, 
         comments: 0,
         shares: 0
       },
@@ -240,9 +225,7 @@ This is mock data for development purposes. Configure one of the above methods t
   }
 }
 
-// Helper function to extract Facebook page ID from URL
 export function extractFacebookPageId(url: string): string | null {
-  // https://facebook.com/PageName
   const patterns = [
     /facebook\.com\/([^\/\?]+)/,
     /fb\.com\/([^\/\?]+)/,

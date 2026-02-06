@@ -1,4 +1,3 @@
-// lib/scrapers/base/ScraperCache.ts
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -21,7 +20,6 @@ export class ScraperCache {
       return null;
     }
     
-    // Check if expired
     if (Date.now() - entry.timestamp > this.ttl) {
       this.cache.delete(key);
       return null;
@@ -32,7 +30,6 @@ export class ScraperCache {
   }
 
   async set<T>(key: string, data: T): Promise<void> {
-    // Implement LRU eviction
     if (this.cache.size >= this.maxEntries) {
       const firstKey = this.cache.keys().next().value;
       if (typeof firstKey === 'string') {

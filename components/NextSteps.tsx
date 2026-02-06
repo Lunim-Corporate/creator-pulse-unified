@@ -20,7 +20,6 @@ const priorityStyles: Record<
 export function NextSteps({ next_steps }: NextStepsProps) {
   return (
     <div className="space-y-8 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -37,7 +36,6 @@ export function NextSteps({ next_steps }: NextStepsProps) {
             style={{ animationDelay: `${idx * 0.08}s` }}
           >
             <div className="flex items-start justify-between gap-4">
-              {/* Step description */}
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <CheckCircle2 className="w-5 h-5 text-success" />
@@ -49,7 +47,6 @@ export function NextSteps({ next_steps }: NextStepsProps) {
                 </p>
               </div>
 
-              {/* Priority Badge */}
               <div
                 className={`px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wide min-w-[90px] text-center ${priorityStyles[item.priority]}`}
               >
@@ -57,10 +54,8 @@ export function NextSteps({ next_steps }: NextStepsProps) {
               </div>
             </div>
 
-            {/* Divider */}
             <div className="h-px bg-border/60 my-4"></div>
 
-            {/* Action CTA */}
             <div className="flex items-center gap-2 text-primary font-medium text-sm group cursor-pointer">
               Begin this step
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

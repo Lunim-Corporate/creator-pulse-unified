@@ -23,15 +23,14 @@ export interface ScraperStats {
 export class ScraperFactory {
   private scrapers = new Map<Platform, BaseScraper>();
   private stats = new Map<Platform, ScraperStats>();
-  private mode: 'tabb' | 'lunim' = 'tabb';
+  private mode: 'tabb' | 'lunim' | 'general' = 'tabb';
 
-  constructor(mode?: 'tabb' | 'lunim') {
-    this.mode = mode || 'tabb';
+  constructor(mode?: 'tabb' | 'lunim' | 'general') {
+    this.mode = mode || 'general';
     this.initializeScrapers();
   }
 
   private initializeScrapers() {
-    // YouTube - Always available with API key
     if (API_CONFIG.youtube.apiKey) {
       this.scrapers.set('youtube', new YoutubeScraper({
         apiKey: API_CONFIG.youtube.apiKey
@@ -44,7 +43,6 @@ export class ScraperFactory {
       });
     }
 
-    // Reddit - Try API first, fallback to RSS
     if (API_CONFIG.reddit.enabled) {
       this.scrapers.set('reddit', new RedditScraper({
         clientId: API_CONFIG.reddit.clientId,
@@ -59,7 +57,7 @@ export class ScraperFactory {
         configured: true
       });
     } else {
-      console.log('🔄 Reddit API not configured, using RSS fallback');
+      console.log('Reddit API not configured, using RSS fallback');
       this.scrapers.set('reddit', new RedditRSSScraper({
         subreddits: ['Filmmakers', 'VideoEditing', 'Videography', 'cinematography']
       }));
@@ -71,7 +69,6 @@ export class ScraperFactory {
       });
     }
 
-    // Facebook - Try API first, fallback to public scraper
     if (API_CONFIG.facebook.enabled) {
       this.scrapers.set('facebook', new FacebookScraper({
         accessToken: API_CONFIG.facebook.accessToken
@@ -83,7 +80,7 @@ export class ScraperFactory {
         configured: true
       });
     } else {
-      console.log('📡 Facebook API not configured, using public scraper (limited)');
+      console.log(' Facebook API not configured, using public scraper (limited)');
       this.scrapers.set('facebook', new FacebookPublicScraper({
         pages: []
       }));
@@ -95,9 +92,8 @@ export class ScraperFactory {
       });
     }
 
-    // Perplexity - NEW: AI-powered web scraper
     if (API_CONFIG.perplexity.enabled) {
-      console.log('✨ Perplexity scraper enabled - will enhance data collection');
+      console.log(' Perplexity scraper enabled - will enhance data collection');
       this.scrapers.set('perplexity', new PerplexityScraper({
         apiKey: API_CONFIG.perplexity.apiKey,
         mode: this.mode
@@ -109,7 +105,7 @@ export class ScraperFactory {
         configured: true
       });
     } else {
-      console.log('⚠️  Perplexity API not configured - skipping AI scraping');
+      console.log('  Perplexity API not configured - skipping AI scraping');
     }
   }
 
@@ -130,7 +126,7 @@ export class ScraperFactory {
       youtube?: string[]; 
       reddit?: string[]; 
       facebook?: string[];
-      perplexity?: string[]; // NEW: Optional Perplexity queries
+      perplexity?: string[]; 
     }
   ): Promise<{
     posts: ScrapedPost[];
@@ -146,43 +142,35 @@ export class ScraperFactory {
       perplexity: { count: 0, method: 'none' }
     };
 
-    // Scrape all platforms in parallel for speed
     const scrapePromises: Promise<void>[] = [];
 
-    // YouTube
     if (queries.youtube?.length) {
       scrapePromises.push(
         this.scrapeYouTube(queries.youtube, posts, platformStats, failures)
       );
     }
 
-    // Reddit
     if (queries.reddit?.length) {
       scrapePromises.push(
         this.scrapeReddit(queries.reddit, posts, platformStats, failures)
       );
     }
 
-    // Facebook
     if (queries.facebook?.length) {
       scrapePromises.push(
         this.scrapeFacebook(queries.facebook, posts, platformStats, failures)
       );
     }
 
-    // Perplexity - NEW: Scrape with AI
     if (queries.perplexity?.length || (queries.youtube?.length && this.stats.get('perplexity')?.available)) {
-      // Use YouTube queries if no specific Perplexity queries provided
       const perplexityQueries = queries.perplexity || queries.youtube || [];
       scrapePromises.push(
         this.scrapePerplexity(perplexityQueries, posts, platformStats, failures)
       );
     }
 
-    // Wait for all scrapers to complete
     await Promise.allSettled(scrapePromises);
 
-    // Deduplicate and merge posts
     const deduplicatedPosts = this.deduplicateAndMerge(posts);
 
     console.log('\n' + '='.repeat(60));
@@ -221,7 +209,6 @@ export class ScraperFactory {
         console.log('\n→ Scraping YouTube...');
         for (const query of queries) {
           const results = await scraper.search(query, 25);
-          // Tag with source
           results.forEach(p => {
             p.metadata = { ...p.metadata, source: 'youtube' };
             p._sources = ['youtube'];
@@ -344,20 +331,16 @@ export class ScraperFactory {
     const postMap = new Map<string, ScrapedPost>();
 
     for (const post of posts) {
-      // Create content-based key for deduplication
       const contentKey = this.generateContentKey(post);
       
       if (postMap.has(contentKey)) {
-        // Merge: combine sources and take best engagement data
         const existing = postMap.get(contentKey)!;
         existing._sources = [...(existing._sources || []), ...(post._sources || [])];
         
-        // Prefer Perplexity-verified content
         if (post.metadata?.source === 'perplexity' && !existing.metadata?.verified) {
           existing.metadata = { ...existing.metadata, verified: true };
         }
         
-        // Take higher engagement numbers
         if (post.engagement) {
           existing.engagement = {
             likes: Math.max(existing.engagement?.likes || 0, post.engagement.likes || 0),
@@ -366,52 +349,48 @@ export class ScraperFactory {
           };
         }
         
-        // Calculate quality score
         existing._qualityScore = this.calculateQualityScore(existing);
       } else {
-        // New post
         post._qualityScore = this.calculateQualityScore(post);
         postMap.set(contentKey, post);
       }
     }
 
-    // Convert back to array and sort by quality
     return Array.from(postMap.values())
       .sort((a, b) => (b._qualityScore || 0) - (a._qualityScore || 0));
   }
 
-  private generateContentKey(post: ScrapedPost): string {
-    // Normalize content for deduplication
-    const normalized = post.content
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .slice(0, 200);
-    
-    return `${post.platform}:${post.creator_handle}:${normalized}`;
-  }
+private generateContentKey(post: ScrapedPost): string {
+  const normalized = post.content
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .slice(0, 200);
+  
+  const sourceIdentifier = post.metadata?.source === 'perplexity' 
+    ? 'perplexity'  
+    : post.platform; 
+  
+  return `${sourceIdentifier}:${post.creator_handle}:${normalized}`;
+}
 
   private calculateQualityScore(post: ScrapedPost): number {
-    let score = 50; // Base score
+    let score = 50;
 
-    // Perplexity verification boost
     if (post.metadata?.verified || post._sources?.includes('perplexity')) {
       score += 30;
     }
 
-    // Multi-source boost
     if (post._sources && post._sources.length > 1) {
       score += 20;
     }
 
-    // Engagement signals
     const eng = post.engagement || {};
     if (eng.likes && eng.likes > 50) score += 10;
     if (eng.comments && eng.comments > 10) score += 10;
     if (eng.views && eng.views > 1000) score += 5;
 
-    // Content quality
     if (post.content.length > 200) score += 5;
-    if (post.content.includes('?')) score += 5; // Questions are valuable
+    if (post.content.includes('?')) score += 5; 
 
     return Math.min(score, 100);
   }
@@ -443,10 +422,9 @@ export class ScraperFactory {
   }
 }
 
-// Singleton with mode support
 let factoryInstance: ScraperFactory | null = null;
 
-export function getScraperFactory(mode?: 'tabb' | 'lunim'): ScraperFactory {
+export function getScraperFactory(mode?: 'tabb' | 'lunim' | 'general'): ScraperFactory {
   if (!factoryInstance || (mode && factoryInstance['mode'] !== mode)) {
     factoryInstance = new ScraperFactory(mode);
   }

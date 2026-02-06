@@ -42,8 +42,8 @@ export function sanitizePost(post: ScrapedPost): ScrapedPost {
   return {
     ...post,
     content: post.content
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with 2
+      .replace(/\s+/g, ' ') 
+      .replace(/\n{3,}/g, '\n\n') 
       .trim()
   };
 }
@@ -115,8 +115,8 @@ export function hasMinimumAnalysisData(analysis: any): boolean {
 export function sanitizeSearchQuery(query: string): string {
   return query
     .trim()
-    .replace(/[<>]/g, '') // Remove potential HTML/XSS
-    .slice(0, 200); // Limit length
+    .replace(/[<>]/g, '') 
+    .slice(0, 200); 
 }
 
 

@@ -16,7 +16,6 @@ export function ExportMenu({ analysis, quality }: ExportMenuProps) {
     setExporting(format);
     
     try {
-      // Dynamic import to avoid server-side issues
       const { ExportService } = await import('../lib/export/ExportService');
       ExportService.exportAnalysis(analysis, format, quality);
       
@@ -70,13 +69,11 @@ export function ExportMenu({ analysis, quality }: ExportMenuProps) {
 
       {isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Menu */}
           <div className="absolute right-0 mt-2 w-72 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden animate-slide-up">
             <div className="p-3 border-b border-border bg-muted/20">
               <h3 className="font-semibold text-sm text-foreground">

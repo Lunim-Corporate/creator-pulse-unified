@@ -12,7 +12,6 @@ export function ThemesSection({ themes, isEnriched }: TopTalkingPointsProps) {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <div className="flex items-center gap-3">
@@ -27,7 +26,6 @@ export function ThemesSection({ themes, isEnriched }: TopTalkingPointsProps) {
         <div className="h-px flex-1 bg-border"></div>
       </div>
 
-      {/* Talking Points Accordion */}
       <div className="space-y-3">
         {themes.map((point, idx) => (
           <div
@@ -39,7 +37,6 @@ export function ThemesSection({ themes, isEnriched }: TopTalkingPointsProps) {
             }`}
             style={{ animationDelay: `${idx * 0.1}s` }}
           >
-            {/* HEADER */}
             <button
               onClick={() => setExpanded(expanded === idx ? null : idx)}
               className="w-full px-6 py-5 flex items-center justify-between hover:bg-surface-elevated transition-colors"
@@ -60,10 +57,8 @@ export function ThemesSection({ themes, isEnriched }: TopTalkingPointsProps) {
               />
             </button>
 
-            {/* BODY */}
             {expanded === idx && (
               <div className="px-6 py-6 bg-muted/20 border-t border-border space-y-6 animate-slide-up">
-                {/* KEYWORDS */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Hash className="w-4 h-4 text-secondary" />
@@ -86,7 +81,6 @@ export function ThemesSection({ themes, isEnriched }: TopTalkingPointsProps) {
 
                 <div className="h-px bg-border/50"></div>
 
-                {/* GROWTH TREND */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Activity className="w-4 h-4 text-primary" />

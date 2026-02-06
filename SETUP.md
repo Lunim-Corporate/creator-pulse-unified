@@ -207,7 +207,7 @@ SUPABASE_SERVICE_ROLE_KEY
 Before deploying, verify all required variables are set:
 
 ```bash
-npm run verify-env  # If you create this script
+npm run verify-env  
 ```
 
 ## 🎯 Usage Best Practices

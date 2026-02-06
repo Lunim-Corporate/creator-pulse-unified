@@ -29,33 +29,41 @@ export function PromptBar({
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      {/* Mode Tabs - Full Width, Prominent */}
       <div className="flex border-b border-border">
-        <button
-          className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
-            mode === "tabb"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-          }`}
-          onClick={() => setMode("tabb" as Mode)}
-        >
-          Tabb Mode
-        </button>
-        <button
-          className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
-            mode === "lunim"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-          }`}
-          onClick={() => setMode("lunim" as Mode)}
-        >
-          Lunim Mode
-        </button>
-      </div>
+      <button
+        className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+          mode === "general"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+        }`}
+        onClick={() => setMode("general" as Mode)}
+      >
+        General Mode
+      </button>
+      <button
+        className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+          mode === "tabb"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+        }`}
+        onClick={() => setMode("tabb" as Mode)}
+      >
+        Tabb Mode
+      </button>
+      <button
+        className={`flex-1 px-6 py-4 text-sm font-semibold transition-all ${
+          mode === "lunim"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+        }`}
+        onClick={() => setMode("lunim" as Mode)}
+      >
+        Lunim Mode
+      </button>
+</div>
 
       <div className="p-6 space-y-5">
 
-  {/* SAVED PROMPTS - NOW ON TOP */}
   {activePrompts.length > 0 && (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -89,7 +97,6 @@ export function PromptBar({
     </div>
   )}
 
-  {/* MAIN PROMPT TEXTAREA */}
   <div className="space-y-2">
     <label className="text-sm font-medium text-foreground">
       Research Prompt
@@ -102,15 +109,14 @@ export function PromptBar({
     />
   </div>
 
-  {/* ACTION ROW */}
   <div className="flex gap-3">
-    <button
+    {/* <button
       onClick={onGenerateQueries}
       className="flex-1 bg-primary text-primary-foreground px-4 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity flex justify-center items-center gap-2"
     >
       <Search className="w-4 h-4" />
       Generate Queries
-    </button>
+    </button> */}
 
     <div className="flex gap-2">
       <input
@@ -132,40 +138,6 @@ export function PromptBar({
       </button>
     </div>
   </div>
-
-
-
-        {/* {activePrompts.length > 0 && (
-          <div className="pt-4 border-t border-border space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Saved Prompts
-              </span>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                {activePrompts.length}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {activePrompts.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPrompt(p.prompt)}
-                  className="group text-sm px-3 py-1.5 bg-muted/50 border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
-                >
-                  <span>{p.label}</span>
-                  <Trash2
-                    className="w-3 h-3 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePrompt(mode, p.id);
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )} */}
       </div>
     </div>
   );

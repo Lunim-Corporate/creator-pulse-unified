@@ -34,6 +34,7 @@ export interface ContentPerformanceInsight {
   why_it_performed: string;
   supporting_examples: SupportingExample[];
   engagement_pattern: string;
+  _enriched?: boolean;
 }
 
 export interface AnalysisResult {
@@ -76,6 +77,13 @@ export interface AnalysisResult {
     creator_tier: string;
     followers_estimate: number;
     is_verified: boolean;
+    _sources?: string[];
+    _qualityScore?: number;
+    metadata?: {
+      source?: 'youtube' | 'reddit' | 'facebook' | 'perplexity';
+      verified?: boolean;
+      [key: string]: any;
+    };
   }>;
 
   top_talking_points: Array<{
@@ -89,7 +97,7 @@ export interface AnalysisResult {
     processingTime: number;
     postsAnalyzed: number;
     perplexityUsed: boolean;
-    perplexityScrapedPosts?: number; // NEW: How many posts came from Perplexity scraping
+    perplexityScrapedPosts: number; 
     enrichmentSources: string[];
     generatedAt: string;
     mode: string;

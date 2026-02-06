@@ -11,7 +11,6 @@ interface AutomationOpportunitiesProps {
 export function AutomationOpportunities({ automation_spots }: AutomationOpportunitiesProps) {
   return (
     <div className="space-y-8 animate-slide-up">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-border"></div>
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -41,7 +40,6 @@ export function AutomationOpportunities({ automation_spots }: AutomationOpportun
               </div>
             </div>
 
-            {/* Why Automation Helps */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Lightbulb className="w-4 h-4 text-accent" />
@@ -55,7 +53,6 @@ export function AutomationOpportunities({ automation_spots }: AutomationOpportun
               </p>
             </div>
 
-            {/* Proposed Automation Flow */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Workflow className="w-4 h-4 text-success" />

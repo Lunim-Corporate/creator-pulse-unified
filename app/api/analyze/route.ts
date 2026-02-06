@@ -8,7 +8,7 @@ import { handleApiError } from "@/lib/utils/error";
 const AnalyzeRequestSchema = z.object({
   posts: z.array(z.any()).min(1, "At least one post is required"),
   prompt: z.string().optional(),
-  mode: z.enum(['tabb', 'lunim']),
+  mode: z.enum(['tabb', 'lunim', 'general']),
   options: z.object({
     enrichWithPerplexity: z.boolean().default(true),
     minEngagementTargets: z.number().min(5).max(50).default(15),

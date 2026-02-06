@@ -51,7 +51,6 @@ export function QualityScoreCard({ quality }: QualityScoreCardProps) {
 
   return (
     <div className="bg-surface border border-border rounded-xl overflow-hidden">
-      {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full p-6 flex items-center justify-between hover:bg-surface-elevated transition-colors"
@@ -83,10 +82,8 @@ export function QualityScoreCard({ quality }: QualityScoreCardProps) {
         )}
       </button>
 
-      {/* Expanded Content */}
       {isExpanded && (
         <div className="px-6 pb-6 space-y-6 border-t border-border animate-slide-up">
-          {/* Breakdown */}
           <div>
             <h4 className="text-sm font-bold text-foreground uppercase tracking-wider mb-3">
               Score Breakdown
@@ -118,7 +115,6 @@ export function QualityScoreCard({ quality }: QualityScoreCardProps) {
             </div>
           </div>
 
-          {/* Flags */}
           {(errors.length > 0 || warnings.length > 0) && (
             <div>
               <h4 className="text-sm font-bold text-foreground uppercase tracking-wider mb-3">
@@ -168,7 +164,6 @@ export function QualityScoreCard({ quality }: QualityScoreCardProps) {
             </div>
           )}
 
-          {/* Recommendations */}
           {quality.recommendations.length > 0 && (
             <div>
               <h4 className="text-sm font-bold text-foreground uppercase tracking-wider mb-3">

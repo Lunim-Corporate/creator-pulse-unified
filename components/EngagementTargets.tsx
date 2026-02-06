@@ -1,8 +1,6 @@
-
-
-
 import { ExternalLink, MessageSquare, TrendingUp } from 'lucide-react';
 import { AnalysisResult } from '../lib/scrapers/types';
+import { SourceBadge } from './SourceBadge';
 
 interface EngagementTargetsProps {
   targets: AnalysisResult['engagement_targets'];
@@ -39,8 +37,15 @@ export function EngagementTargets({ targets }: EngagementTargetsProps) {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <h3 className="font-bold text-foreground text-lg">@{target.creator_handle}</h3>
+                  
+                  <SourceBadge 
+                    sources={target._sources} 
+                    verified={target.metadata?.verified}
+                    size="sm" 
+                  />
+                  
                   <a
                     href={target.post_link}
                     target="_blank"
@@ -50,15 +55,26 @@ export function EngagementTargets({ targets }: EngagementTargetsProps) {
                     <ExternalLink className="w-4 h-4 text-muted-foreground group-hover/link:text-primary transition-colors" />
                   </a>
                 </div>
-                <span
-                  className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${getPlatformColor(target.platform)}`}
-                >
-                  {target.platform.toUpperCase()}
-                </span>
+                
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${getPlatformColor(target.platform)}`}
+                  >
+                    {target.platform.toUpperCase()}
+                  </span>
+                  
+                  {target._qualityScore && target._qualityScore > 70 && (
+                    <span className="text-xs text-green-600 font-semibold">
+                      Quality: {target._qualityScore}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">{target.summary}</p>
+            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 leading-relaxed">
+              {target.summary}
+            </p>
 
             <div className="space-y-4 bg-muted/30 rounded-lg p-4 border border-border/50">
               <div>
@@ -68,7 +84,9 @@ export function EngagementTargets({ targets }: EngagementTargetsProps) {
                     Pain Point Match
                   </h4>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{target.pain_point_match}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {target.pain_point_match}
+                </p>
               </div>
 
               <div className="h-px bg-border/50"></div>
@@ -80,18 +98,18 @@ export function EngagementTargets({ targets }: EngagementTargetsProps) {
                     Recommended Engagement
                   </h4>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{target.recommended_engagement}</p>
-                <br />
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider">
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                  {target.recommended_engagement}
+                </p>
+                
+                <div className="pt-3 border-t border-border/50">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
                     Example Outreach
                   </h4>
-                  <br />
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {target.example_outreach}
+                  <p className="text-sm text-muted-foreground leading-relaxed italic">
+                    "{target.example_outreach}"
                   </p>
                 </div>
-
               </div>
             </div>
           </div>

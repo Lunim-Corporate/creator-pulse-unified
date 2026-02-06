@@ -1,4 +1,3 @@
-// lib/scrapers/base/RateLimiter.ts
 export class RateLimiter {
   private queue: number[] = [];
   private readonly windowMs: number;
@@ -6,18 +5,17 @@ export class RateLimiter {
 
   constructor(config: { requestsPerMinute: number }) {
     this.maxRequests = config.requestsPerMinute;
-    this.windowMs = 60000; // 1 minute
+    this.windowMs = 60000; 
   }
 
   async waitForSlot(): Promise<void> {
     const now = Date.now();
     
-    // Remove requests outside the time window
     this.queue = this.queue.filter(time => now - time < this.windowMs);
 
     if (this.queue.length >= this.maxRequests) {
       const oldestRequest = this.queue[0];
-      const waitTime = this.windowMs - (now - oldestRequest) + 100; // +100ms buffer
+      const waitTime = this.windowMs - (now - oldestRequest) + 100; 
       
       console.log(`Rate limit: waiting ${waitTime}ms`);
       await this.sleep(waitTime);

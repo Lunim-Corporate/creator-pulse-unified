@@ -12,96 +12,72 @@ export async function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
-  const mode = req.nextUrl.searchParams.get("mode");
+  try {
+    const { data: prompts, error } = await supabase
+      .from('saved_prompts')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (mode !== "tabb" && mode !== "lunim") {
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(prompts || [], { headers: corsHeaders });
+  } catch (error) {
+    console.error("Failed to fetch prompts:", error);
     return NextResponse.json(
-      { error: "Invalid mode" },
-      { status: 400, headers: corsHeaders }
-    );
-  }
-
-  const { data, error } = await supabase
-    .from("saved_prompts")
-    .select("*")
-    .eq("mode", mode)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
+      { error: "Failed to fetch prompts" },
       { status: 500, headers: corsHeaders }
     );
   }
-
-  return NextResponse.json(data, { headers: corsHeaders });
 }
 
 export async function POST(req: NextRequest) {
-  const payload = await req.json();
-  const { action } = payload;
+  try {
+    const body = await req.json();
+    const { action, mode, label, prompt, id } = body;
 
-  if (!action) {
+    if (action === "create") {
+      const { data: saved, error } = await supabase
+        .from('saved_prompts')
+        .insert({
+          mode,
+          label,
+          prompt,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return NextResponse.json(saved, { headers: corsHeaders });
+    }
+
+    if (action === "delete") {
+      const { error } = await supabase
+        .from('saved_prompts')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      return NextResponse.json({ success: true }, { headers: corsHeaders });
+    }
+
     return NextResponse.json(
-      { error: "Missing action" },
+      { error: "Invalid action" },
       { status: 400, headers: corsHeaders }
     );
+  } catch (error) {
+    console.error("Prompt operation failed:", error);
+    return NextResponse.json(
+      { error: "Operation failed" },
+      { status: 500, headers: corsHeaders }
+    );
   }
-
-  if (action === "create") {
-    const { mode, label, prompt } = payload;
-
-    if (!mode || !label || !prompt) {
-      return NextResponse.json(
-        { error: "Missing fields for create" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const { data, error } = await supabase
-      .from("saved_prompts")
-      .insert([{ mode, label, prompt }])
-      .select()
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    return NextResponse.json(data, { headers: corsHeaders });
-  }
-
- 
-  if (action === "delete") {
-    const { id } = payload;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "Missing id for delete" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const { error } = await supabase
-      .from("saved_prompts")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    return NextResponse.json({ success: true }, { headers: corsHeaders });
-  }
-
-  return NextResponse.json(
-    { error: "Invalid action" },
-    { status: 400, headers: corsHeaders }
-  );
 }

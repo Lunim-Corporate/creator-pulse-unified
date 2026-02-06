@@ -1,4 +1,3 @@
-// lib/scrapers/youtube.ts - COMPLETE REPLACEMENT
 import { BaseScraper } from './base/BaseScraper';
 import { ApiError } from '../utils/error';
 import { YOUTUBE_CONFIG } from '../config/scraper.config';
@@ -51,7 +50,6 @@ export class YoutubeScraper extends BaseScraper {
   }
 
   private async searchVideos(query: string, limit: number): Promise<ScrapedPost[]> {
-    // Step 1: Search for videos
     const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
     searchUrl.searchParams.set('part', 'snippet');
     searchUrl.searchParams.set('q', query);
@@ -78,18 +76,15 @@ export class YoutubeScraper extends BaseScraper {
       return [];
     }
 
-    // Step 2: Batch fetch video statistics
     const videoIds = data.items.map((item: YoutubeSearchResult) => item.id.videoId);
     const statsMap = await this.batchFetchStats(videoIds);
 
-    // Step 3: Transform results
     return this.transformResults(data.items, statsMap);
   }
 
   private async batchFetchStats(videoIds: string[]): Promise<Map<string, YoutubeVideoStats>> {
     const statsMap = new Map<string, YoutubeVideoStats>();
     
-    // YouTube API allows up to 50 IDs per request
     const chunks = this.chunkArray(videoIds, 50);
     
     await Promise.all(

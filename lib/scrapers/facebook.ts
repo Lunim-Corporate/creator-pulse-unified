@@ -1,4 +1,3 @@
-// lib/scrapers/facebook.ts - Fixed to extend BaseScraper
 import { BaseScraper } from './base/BaseScraper';
 import { FACEBOOK_CONFIG } from '../config/scraper.config';
 import type { ScrapedPost } from "./types";
@@ -48,7 +47,6 @@ export class FacebookScraper extends BaseScraper {
 
   private async searchPosts(pageId: string, limit: number = 10): Promise<ScrapedPost[]> {
     try {
-      // Get page info
       const pageInfoRes = await fetch(
         `https://graph.facebook.com/v18.0/${pageId}?fields=name&access_token=${this.config.accessToken}`
       );
@@ -60,7 +58,6 @@ export class FacebookScraper extends BaseScraper {
 
       const pageInfo = (await pageInfoRes.json()) as FacebookPageInfo;
 
-      // Get posts
       const res = await fetch(
         `https://graph.facebook.com/v18.0/${pageId}/posts?fields=message,story,created_time,permalink_url,shares.summary(true),likes.summary(true),comments.summary(true)&limit=${limit}&access_token=${this.config.accessToken}`
       );

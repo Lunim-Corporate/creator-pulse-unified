@@ -1,4 +1,3 @@
-// app/api/generate-queries/route.ts - FIXED for better targeting
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeClearPrompt } from "../../../lib/clear/normalizeclear";
 import OpenAI from "openai";
@@ -18,7 +17,6 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.OPENAI_API_KEY!,
     });
 
-    // Enhanced system prompt with MUCH more specific instructions
     const system = `You generate highly targeted search queries for social platforms.
 
 Mode: ${mode}
@@ -52,9 +50,9 @@ AVOID:
 - Generic "marketing" or "business" queries
 - Non-film content creation
 - Social media influencer content
-- General productivity topics
-` : `
-LUNIM MODE - CREATIVE TECH FOCUS:
+- General productivity topics`
+: mode === 'lunim'
+  ? `LUNIM MODE - CREATIVE TECH FOCUS:
 Your queries MUST focus on:
 - AI tools for creative work
 - Design thinking and innovation
@@ -80,7 +78,33 @@ AVOID:
 - Pure coding/dev content
 - Consumer AI apps
 - General business tech
-`}
+`
+: `GENERAL MODE - BROAD CREATOR FOCUS:
+Your queries MUST focus on:
+- Content creators across all platforms
+- Cross-platform trends and workflows
+- General creative challenges and solutions
+- Audience growth and engagement strategies
+- Multi-platform content strategies
+
+REQUIRED KEYWORDS IN QUERIES:
+- For YouTube: Include "content creation", "creator", "youtube strategy", "video content"
+- For Reddit: Focus on general creator subreddits
+- For Facebook: Creator and content marketing groups
+
+EXAMPLE GOOD QUERIES:
+- "content creator workflow tools"
+- "multi-platform content strategy"
+- "creator audience growth tips"
+- "video content engagement"
+
+AVOID:
+- Overly niche technical content
+- Platform-specific jargon
+- Industry-specific terminology`
+}
+
+
 
 CRITICAL RULES:
 1. Every query MUST include domain-specific keywords
@@ -105,7 +129,7 @@ Each array should have 3-5 highly targeted queries.`;
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       response_format: { type: "json_object" },
-      temperature: 0.3, // Lower for more consistent results
+      temperature: 0.3, 
       messages: [
         { role: "system", content: system },
         { 

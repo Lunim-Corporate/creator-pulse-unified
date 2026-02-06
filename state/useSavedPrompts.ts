@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export type Mode = "tabb" | "lunim";
+export type Mode = "tabb" | "lunim" | "general";
 
 export interface SavedPrompt {
   id: string;
@@ -11,23 +11,33 @@ export interface SavedPrompt {
 }
 
 export function useSavedPrompts() {
-  const [mode, setMode] = useState<Mode>("tabb");
+  const [mode, setMode] = useState<Mode>("general");
   const [prompts, setPrompts] = useState<Record<Mode, SavedPrompt[]>>({
     tabb: [],
     lunim: [],
+    general: []
   });
 
   useEffect(() => {
-    fetch(`api/prompts?mode=${mode}`)
+    fetch('api/prompts') 
       .then((res) => res.json())
       .then((data: SavedPrompt[]) => {
-        setPrompts((prev) => ({
-          ...prev,
-          [mode]: data,
-        }));
+        const grouped: Record<Mode, SavedPrompt[]> = {
+          tabb: [],
+          lunim: [],
+          general: []
+        };
+
+        data.forEach((prompt) => {
+          if (prompt.mode in grouped) {
+            grouped[prompt.mode].push(prompt);
+          }
+        });
+
+        setPrompts(grouped);
       })
       .catch(console.error);
-  }, [mode]);
+  }, []); 
 
   const savePrompt = async (targetMode: Mode, label: string, prompt: string) => {
     console.log("Saving prompt", { targetMode, label, prompt });
@@ -37,17 +47,19 @@ export function useSavedPrompts() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "create",
-        mode,
+        mode: targetMode, 
         label,
         prompt,
       }),
     });
 
-
+    if (!res.ok) {
+      console.error("Failed to save prompt");
+      return;
+    }
 
     const saved = await res.json();
     console.log("Saved prompt response", saved);
-
 
     setPrompts((prev) => ({
       ...prev,
@@ -55,8 +67,8 @@ export function useSavedPrompts() {
     }));
   };
 
- const deletePrompt = async (targetMode: Mode, id: string) => {
-  const res = await fetch("api/prompts", {
+  const deletePrompt = async (targetMode: Mode, id: string) => {
+    const res = await fetch("api/prompts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -65,17 +77,15 @@ export function useSavedPrompts() {
       }),
     });
 
+    if (!res.ok) {
+      throw new Error("Failed to delete prompt");
+    }
 
-  if (!res.ok) {
-    throw new Error("Failed to delete prompt");
-  }
-
-  setPrompts((prev) => ({
-    ...prev,
-    [targetMode]: prev[targetMode].filter((p) => p.id !== id),
-  }));
-};
-
+    setPrompts((prev) => ({
+      ...prev,
+      [targetMode]: prev[targetMode].filter((p) => p.id !== id),
+    }));
+  };
 
   return {
     mode,

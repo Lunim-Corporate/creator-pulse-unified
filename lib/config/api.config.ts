@@ -3,7 +3,7 @@ export const API_CONFIG = {
     apiKey: process.env.OPENAI_API_KEY!,
     model: 'gpt-4o',
     fallbackModel: 'gpt-4o-mini',
-    maxTokens: 4000,
+    maxTokens: 8000,
     temperature: 0.7
   },
   

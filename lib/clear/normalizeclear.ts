@@ -29,7 +29,7 @@ export interface ClearPrompt {
 
 export async function normalizeClearPrompt(
   rawPrompt: string,
-  mode: "tabb" | "lunim"
+  mode: "tabb" | "lunim" | "general"
 ): Promise<ClearPrompt> {
   const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
@@ -54,13 +54,21 @@ ${mode === 'tabb'
 - Channels: YouTube (tutorials, workflows), Reddit (questions, discussions)
 - Forbidden: Invented statistics, unverifiable claims about "best" or "#1"
 - Required: Real examples from actual creators, specific pain points`
-  : `Lunim Context:
+  : mode === 'lunim'
+  ? `Lunim Context:
 - Audience: Innovation leaders, design teams, strategic decision-makers
 - Goal: Identify creative technology trends and strategic opportunities
 - Voice: Visionary, strategic, thoughtful, experimental
 - Channels: YouTube (tech talks, case studies), Reddit (innovation discussions)
 - Forbidden: AI hype, buzzwords without substance, overpromises
 - Required: Evidence-based insights, systems thinking, measured analysis`
+  : `General Context:
+- Audience: Content creators, digital professionals, broad audience
+- Goal: Understand cross-platform trends and general creator insights
+- Voice: Neutral, adaptable, data-driven
+- Channels: YouTube, Reddit, Facebook (general content)
+- Forbidden: Invented statistics, unverifiable claims
+- Required: Evidence-based insights, actionable recommendations`
 }
 
 CRITICAL RULES:
@@ -115,17 +123,30 @@ Return STRICT JSON:
   return validateClear(result, mode);
 }
 
-function validateClear(prompt: any, mode: 'tabb' | 'lunim'): ClearPrompt {
+function validateClear(prompt: any, mode: 'tabb' | 'lunim' | 'general'): ClearPrompt {
   return {
     context: {
-      audience: prompt.context?.audience || (mode === 'tabb' ? 'Filmmakers and content creators' : 'Innovation leaders and design teams'),
+      audience: prompt.context?.audience || (
+        mode === 'tabb' 
+          ? 'Filmmakers and content creators' 
+          : mode === 'lunim'
+          ? 'Innovation leaders and design teams'
+          : 'Content creators and digital professionals' 
+      ),
       goal: prompt.context?.goal || 'Understand key trends and pain points',
       channel: prompt.context?.channel || ['youtube', 'reddit'],
-      voice: prompt.context?.voice || (mode === 'tabb' ? 'practical, supportive' : 'strategic, thoughtful')
+      voice: prompt.context?.voice || (
+        mode === 'tabb' 
+          ? 'practical, supportive' 
+          : mode === 'lunim'
+          ? 'strategic, thoughtful'
+          : 'neutral, data-driven' 
+      )
     },
+
     limits: {
-      noInventedFacts: true, // Always true
-      noWildPromises: true, // Always true
+      noInventedFacts: true, 
+      noWildPromises: true, 
       forbiddenClaims: prompt.limits?.forbiddenClaims || [
         'Unverified statistics',
         'Absolute claims without evidence',
@@ -139,9 +160,9 @@ function validateClear(prompt: any, mode: 'tabb' | 'lunim'): ClearPrompt {
       ]
     },
     ethics: {
-      flagShakyClaims: true, // Always true
-      inclusiveLanguage: true, // Always true
-      avoidStereotypes: true // Always true
+      flagShakyClaims: true, 
+      inclusiveLanguage: true, 
+      avoidStereotypes: true 
     },
     acceptanceCriteria: prompt.acceptanceCriteria || [
       'Insights are backed by scraped content',
@@ -150,8 +171,8 @@ function validateClear(prompt: any, mode: 'tabb' | 'lunim'): ClearPrompt {
       'Analysis aligns with brand voice'
     ],
     reviewPath: {
-      labelNewStats: true, // Always true
-      labelPerformanceClaims: true, // Always true
+      labelNewStats: true, 
+      labelPerformanceClaims: true, 
       evidenceLabels: prompt.reviewPath?.evidenceLabels || [
         'Mark statistics as [Source: scraped content] or [Needs verification]',
         'Flag superlatives with [Verify claim]',
@@ -192,16 +213,16 @@ REVIEW PATH:
 ${clear.reviewPath.evidenceLabels.map(l => `- ${l}`).join('\n')}
 
 EXAMPLES OF WHAT TO AVOID:
-❌ "80% of filmmakers struggle with..." (unless this stat is in the scraped data)
-❌ "The #1 collaboration tool" (unverifiable superlative)
-❌ "Guaranteed to improve workflow" (wild promise)
-❌ "Everyone agrees that..." (absolute claim)
+ "80% of filmmakers struggle with..." (unless this stat is in the scraped data)
+ "The #1 collaboration tool" (unverifiable superlative)
+ "Guaranteed to improve workflow" (wild promise)
+ "Everyone agrees that..." (absolute claim)
 
 EXAMPLES OF WHAT TO DO:
-✅ "Based on scraped discussions, many creators mention..."
-✅ "Common pain points include..." (then list from actual posts)
-✅ "Several creators report that..." (qualified claim)
-✅ "Trending topics in the community include..."
+ "Based on scraped discussions, many creators mention..."
+ "Common pain points include..." (then list from actual posts)
+ "Several creators report that..." (qualified claim)
+ "Trending topics in the community include..."
 
 CRITICAL: If you're not certain about a claim, either:
 1. Qualify it: "appears to," "may indicate," "suggests"

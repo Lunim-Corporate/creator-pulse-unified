@@ -25,7 +25,8 @@ export const AnalysisSchema = z.object({
     z.object({
       recommendation: z.string(),
       reasoning: z.string(),
-      expected_outcome: z.string()
+      expected_outcome: z.string(),
+      _enriched: z.boolean().optional() 
     })
   ),
   automation_spots: z.array(
@@ -54,7 +55,13 @@ export const AnalysisSchema = z.object({
       relevance_score: z.number(),
       creator_tier: z.string(),
       followers_estimate: z.number(),
-      is_verified: z.boolean()
+      is_verified: z.boolean(),
+      _sources: z.array(z.string()).optional(),
+      _qualityScore: z.number().optional(),
+      metadata: z.object({
+        source: z.enum(['youtube', 'reddit', 'facebook', 'perplexity']).optional(),
+        verified: z.boolean().optional()
+      }).passthrough().optional()
     })
   ),
   top_talking_points: z.array(
@@ -62,7 +69,8 @@ export const AnalysisSchema = z.object({
       topic: z.string(),
       what_people_are_saying: z.string(),
       keywords: z.array(z.string()),
-      growth_trend: z.string()
+      growth_trend: z.string(),
+      _enriched: z.boolean().optional() 
     })
   ),
   
@@ -70,6 +78,7 @@ export const AnalysisSchema = z.object({
     processingTime: z.number(),
     postsAnalyzed: z.number(),
     perplexityUsed: z.boolean(),
+    perplexityScrapedPosts: z.number().optional(), 
     enrichmentSources: z.array(z.string()),
     generatedAt: z.string(),
     mode: z.string()
