@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     console.log(`  - Targets: ${parsed.data.engagement_targets.length}`);
     console.log(`  - Recommendations: ${parsed.data.strategic_recommendations.length}`);
 
-    console.log('\n📦 RESPONSE CHECK:');
+    console.log('\n RESPONSE CHECK:');
     console.log('  - Has _metadata:', !!parsed.data._metadata);
     console.log('  - Has _qualityScore:', !!parsed.data._qualityScore);
     console.log('  - Metadata content:', JSON.stringify(parsed.data._metadata, null, 2));
@@ -118,4 +118,3 @@ export async function POST(request: NextRequest) {
 }
 
 export const runtime = "nodejs";
-export const maxDuration = 60; 

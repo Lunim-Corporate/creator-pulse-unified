@@ -274,7 +274,7 @@ static buildUserMessages(
 ): Array<{ role: 'user'; content: string }> {
   const messages: Array<{ role: 'user'; content: string }> = [];
 
-  const limitedTargets = engagementTargets.slice(0, 30); 
+  const limitedTargets = engagementTargets.slice(0, 25); 
 
   messages.push({
     role: 'user',
@@ -302,7 +302,7 @@ Focus your analysis on this specific research question while following all C.L.E
     });
   }
 
-  const limitedPosts = this.smartSamplePosts(posts, 50);
+  const limitedPosts = this.smartSamplePosts(posts, 40);
   
   const postsText = limitedPosts
     .map(p => {

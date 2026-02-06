@@ -72,33 +72,43 @@ async execute(input: AnalysisInput): Promise<AnalysisResult> {
         clearContext = await normalizeClearPrompt(input.prompt, input.mode);
         console.log('✓ CLEAR framework applied');
       } catch (error) {
-        console.warn('CLEAR framework creation failed:', error);
+        console.warn('⚠️ CLEAR framework creation failed, continuing without it');
       }
     }
 
     const validatedPosts = this.validatePosts(input.posts);
     console.log(`✓ Validated ${validatedPosts.length} posts`);
 
-    let enrichedData: EnrichedData | null = null;
-    let trendingTopics: any[] = []; 
-    
-    if (options.enrichWithPerplexity && this.perplexity.isEnabled()) {
-      try {
-        const [enrichment, trending] = await Promise.all([
-          this.perplexity.enrichPosts(validatedPosts, input.mode),
-          this.perplexity.getTrendingTopics(input.mode)
-        ]);
-        
-        enrichedData = enrichment;
-        trendingTopics = trending;
-        
-        console.log(`✓ Perplexity enrichment complete`);
-        console.log(`✓ Fetched ${trendingTopics.length} trending topics`);
-      } catch (error) {
-        console.error('Perplexity enrichment failed, continuing without:', error);
-      }
+    if (validatedPosts.length === 0) {
+      throw new AnalysisError('No valid posts to analyze');
     }
 
+let enrichedData: EnrichedData | null = null;
+let trendingTopics: any[] = [];
+
+if (options.enrichWithPerplexity && this.perplexity.isEnabled()) {
+  try {
+    console.log('→ Fetching Perplexity trending topics...');
+    
+    const trendingPromise = this.perplexity.getTrendingTopics(input.mode);
+    const timeoutPromise = new Promise<any[]>((resolve) => 
+      setTimeout(() => {
+        console.warn('⚠️ Trending topics timeout (30s), continuing without');
+        resolve([]);
+      }, 30000) 
+    );
+    
+    trendingTopics = await Promise.race([trendingPromise, timeoutPromise]);
+    console.log(`✓ Fetched ${trendingTopics.length} trending topics`);
+  } catch (error) {
+    console.error('⚠️ Perplexity trending topics failed, continuing without:', error);
+    trendingTopics = [];
+  }
+} else {
+  console.log('⏭️ Skipping Perplexity trending topics (not enabled)');
+}
+
+    console.log('→ Extracting engagement targets...');
     const engagementTargets = this.extractEngagementTargets(
       validatedPosts,
       options.minEngagementTargets || 10, 
@@ -115,28 +125,53 @@ async execute(input: AnalysisInput): Promise<AnalysisResult> {
       enrichedData || undefined,
       input.prompt
     );
+    console.log('✓ Prompt built successfully');
 
     console.log('→ Calling OpenAI for analysis...');
-    const completion = await this.openai.chat.completions.create({
-      model: API_CONFIG.openai.model,
-      messages: messages as any,
-      temperature: API_CONFIG.openai.temperature,
-      max_tokens: 16000, 
-      response_format: { type: 'json_object' }
-    });
+    
+    let completion;
+    try {
+      const analysisPromise = this.openai.chat.completions.create({
+        model: API_CONFIG.openai.model,
+        messages: messages as any,
+        temperature: API_CONFIG.openai.temperature,
+        max_tokens: 12000,
+        response_format: { type: 'json_object' }
+      });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI timeout after 90 seconds')), 90000)
+      );
+
+      completion = await Promise.race([analysisPromise, timeoutPromise]) as any;
+      console.log('✅ OpenAI response received');
+    } catch (openaiError: any) {
+      console.error('❌ OpenAI API call failed:', {
+        message: openaiError?.message,
+        status: openaiError?.status,
+        type: openaiError?.type,
+        code: openaiError?.code
+      });
+      throw new AnalysisError(`OpenAI API failed: ${openaiError?.message || 'Unknown error'}`, {
+        cause: openaiError
+      });
+    }
 
     const content = completion.choices[0]?.message?.content;
     if (!content) {
-      throw new AnalysisError('OpenAI returned no content');
+      throw new AnalysisError('OpenAI returned empty response');
     }
 
+    console.log(`✓ Received ${content.length} characters from OpenAI`);
+
+    console.log('→ Parsing OpenAI response...');
     let analysis;
     try {
       analysis = JSON.parse(content);
+      console.log('✓ JSON parsed successfully');
+      
       if (!analysis.content_performance_insights || !analysis.engagement_targets) {
-        console.error('OpenAI response missing required fields');
-        console.error('Available keys:', Object.keys(analysis));
-        
+        console.warn('⚠️ OpenAI response missing required fields, adding defaults');
         analysis = {
           content_performance_insights: analysis.content_performance_insights || [],
           audience_analysis: analysis.audience_analysis || {
@@ -152,100 +187,98 @@ async execute(input: AnalysisInput): Promise<AnalysisResult> {
           top_talking_points: analysis.top_talking_points || []
         };
       }
-    } catch (e) {
-      console.error('Failed to parse OpenAI response:');
-      console.error('Content length:', content.length);
-      console.error('First 500 chars:', content.slice(0, 500));
-      console.error('Last 500 chars:', content.slice(-500));
+    } catch (parseError) {
+      console.error('❌ Failed to parse OpenAI JSON');
+      console.error('Content preview:', content.slice(0, 500));
       
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         try {
           analysis = JSON.parse(jsonMatch[1]);
-          console.log('✓ Successfully extracted JSON from markdown');
+          console.log('✓ Extracted JSON from markdown wrapper');
         } catch (innerError) {
-          console.warn('Attempting to fix truncated JSON...');
+          console.warn('⚠️ Attempting to fix truncated JSON...');
           const fixedContent = this.attemptJsonFix(content);
           if (fixedContent) {
             try {
               analysis = JSON.parse(fixedContent);
-              console.log('✓ Successfully fixed and parsed truncated JSON');
+              console.log('✓ Fixed and parsed truncated JSON');
             } catch (fixError) {
-              throw new AnalysisError('OpenAI returned invalid JSON', { 
-                content: content.slice(0, 1000), 
-                error: e 
+              throw new AnalysisError('OpenAI returned unparseable JSON', { 
+                content: content.slice(0, 1000)
               });
             }
           } else {
-            throw new AnalysisError('OpenAI returned invalid JSON', { 
-              content: content.slice(0, 1000), 
-              error: e 
+            throw new AnalysisError('Could not fix truncated JSON', {
+              content: content.slice(0, 1000)
             });
           }
         }
       } else {
-        console.warn('No markdown wrapper found, attempting to fix truncated JSON...');
-        const fixedContent = this.attemptJsonFix(content);
-        if (fixedContent) {
-          try {
-            analysis = JSON.parse(fixedContent);
-            console.log('✓ Successfully fixed and parsed truncated JSON');
-          } catch (fixError) {
-            throw new AnalysisError('OpenAI returned invalid JSON', { 
-              content: content.slice(0, 1000),
-              error: e 
-            });
-          }
-        } else {
-          throw new AnalysisError('OpenAI returned invalid JSON', { 
-            content: content.slice(0, 1000),
-            error: e 
-          });
-        }
+        throw new AnalysisError('OpenAI returned invalid JSON (no markdown wrapper found)', {
+          content: content.slice(0, 1000)
+        });
       }
     }
 
     console.log('→ Running quality checks...');
-    const qualityScore = QualityMetrics.scoreAnalysis(
-      analysis, 
-      clearContext
-    );
+    const qualityScore = QualityMetrics.scoreAnalysis(analysis, clearContext);
     console.log(QualityMetrics.generateReportCard(qualityScore));
 
     if (qualityScore.overall < 50) {
-      console.warn('  Quality score is low - consider refining the analysis');
+      console.warn('⚠️ Quality score is low - consider refining the analysis');
     }
 
     analysis._qualityScore = qualityScore;
 
-     const finalResult = this.postProcess(
-      analysis, 
-      enrichedData, 
-      trendingTopics, 
-      {
-        processingTime: Date.now() - startTime,
-        postsAnalyzed: validatedPosts.length,
-        perplexityUsed: !!enrichedData,
-        perplexityScrapedPosts: validatedPosts.filter(p => 
-          p.metadata?.source === 'perplexity'
-        ).length,
-        mode: input.mode
-      }
-    );
+    console.log('→ Post-processing results...');
+    const finalResult = this.postProcess(analysis, enrichedData, trendingTopics, {
+    processingTime: Date.now() - startTime,
+    postsAnalyzed: validatedPosts.length,
+    perplexityUsed: trendingTopics.length > 0 || validatedPosts.some(p => p.metadata?.source === 'perplexity'), 
+    perplexityScrapedPosts: validatedPosts.filter(p => 
+      p.metadata?.source === 'perplexity'
+    ).length,
+    mode: input.mode
+  });
 
     if (!finalResult._qualityScore && qualityScore) {
       finalResult._qualityScore = qualityScore;  
     }
 
+    const totalTime = Date.now() - startTime;
     console.log('=== Analysis Pipeline Complete ===');
-    console.log(`Processing time: ${finalResult._metadata?.processingTime}ms`);
+    console.log(`✅ Total processing time: ${(totalTime / 1000).toFixed(1)}s`);
+    console.log(`✅ Insights: ${finalResult.content_performance_insights.length}`);
+    console.log(`✅ Targets: ${finalResult.engagement_targets.length}`);
+    console.log(`✅ Recommendations: ${finalResult.strategic_recommendations.length}`);
 
     return finalResult;
-  } catch (error) {
-    console.error('=== Analysis Pipeline Failed ===');
+
+  } catch (error: any) {
+    console.error('\n' + '='.repeat(60));
+    console.error('❌ ANALYSIS PIPELINE FAILED');
+    console.error('='.repeat(60));
+    console.error('Error Type:', error?.constructor?.name || 'Unknown');
+    console.error('Error Message:', error?.message || 'No message');
+    
+    if (error?.details) {
+      console.error('Error Details:', JSON.stringify(error.details, null, 2));
+    }
+    
+    if (error instanceof Error && error.stack) {
+      console.error('Stack Trace:', error.stack);
+    }
+    
+    console.error('='.repeat(60) + '\n');
+    
     throw error instanceof AnalysisError 
       ? error 
-      : new AnalysisError('Pipeline execution failed', { cause: error });
+      : new AnalysisError('Pipeline execution failed', { 
+          cause: error,
+          message: error?.message,
+          type: error?.constructor?.name
+        });
   }
 }
 

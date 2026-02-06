@@ -137,50 +137,113 @@ export function ScraperDashboard() {
     }
   };
 
-  const handleScrapeAndAnalyze = async (): Promise<void> => {
+const [jobId, setJobId] = useState<string | null>(null);
+const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
+
+const handleScrapeAndAnalyze = async (): Promise<void> => {
+  try {
+    setLoading(true);
+    setError(null);
+    setAnalysis(null);
+    setJobStatus('pending');
+
+    const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
+
+    const scrapeRes = await fetch("/api/scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ queries, mode })
+    });
+
+    if (!scrapeRes.ok) throw new Error("Scraping failed");
+
+    const { posts, failures, stats, metadata } = await scrapeRes.json();
+
+    if (failures?.length) {
+      setSuccess(`Scraped ${posts.length} posts. Skipped: ${failures.join(", ")}`);
+    } else {
+      setSuccess(`Scraped ${posts.length} posts successfully`);
+    }
+
+    const createJobRes = await fetch("/api/jobs/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        posts, 
+        prompt, 
+        mode,
+        options: {
+          enrichWithPerplexity: true,
+          minEngagementTargets: 15,
+          includeTrends: true
+        }
+      })
+    });
+
+    if (!createJobRes.ok) throw new Error("Failed to create analysis job");
+
+    const { jobId: newJobId } = await createJobRes.json();
+    setJobId(newJobId);
+    setSuccess("Analysis started... This may take 1-2 minutes.");
+
+    pollJobStatus(newJobId);
+
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      setError(err.message);
+    } else {
+      setError("Failed to start analysis");
+    }
+    setLoading(false);
+    setJobStatus('failed');
+  }
+};
+
+const pollJobStatus = async (jobId: string) => {
+  const pollInterval = setInterval(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      setAnalysis(null);
-
-      const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
-
-      const scrapeRes = await fetch("/api/scrape", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queries, mode })
-      });
-
-      if (!scrapeRes.ok) throw new Error("Scraping failed");
-
-      const { posts, failures, stats, metadata } = await scrapeRes.json();
-
-      if (failures?.length) {
-        setSuccess(`Analysis completed with partial data. Skipped: ${failures.join(", ")}`);
-      } else {
-        setSuccess(`Analysis complete - ${posts.length} posts collected`);
+      const statusRes = await fetch(`/api/jobs/status?jobId=${jobId}`);
+      
+      if (!statusRes.ok) {
+        clearInterval(pollInterval);
+        setError("Failed to check job status");
+        setLoading(false);
+        setJobStatus('failed');
+        return;
       }
 
-      const apiClient = new AnalysisApiClient();
-      const result = await apiClient.analyzePosts(posts, prompt, mode);
+      const job = await statusRes.json();
+      setJobStatus(job.status);
 
-      setAnalysis(result);
+      if (job.status === 'completed') {
+        clearInterval(pollInterval);
+        setAnalysis(job.result);
+        
+        if (job.result._qualityScore) {
+          setQualityScore(job.result._qualityScore);
+        }
 
-      if (result._qualityScore) {
-        setQualityScore(result._qualityScore);
+        setSuccess("Analysis complete!");
+        setLoading(false);
+        setTimeout(() => scrollToSection("overview"), 500);
+      } else if (job.status === 'failed') {
+        clearInterval(pollInterval);
+        setError(job.error || 'Analysis failed');
+        setLoading(false);
       }
+    } catch (err) {
+      console.error('Polling error:', err);
+    }
+  }, 3000); 
 
-      setTimeout(() => scrollToSection("overview"), 500);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed");
-      }
-    } finally {
+  setTimeout(() => {
+    clearInterval(pollInterval);
+    if (jobStatus !== 'completed') {
+      setError("Analysis timed out");
       setLoading(false);
     }
-  };
+  }, 600000);
+};
 
   const strategicPayload = useMemo(() => {
     if (!analysis?.strategic_recommendations) return null;
@@ -304,23 +367,36 @@ export function ScraperDashboard() {
           </section>
         )} */}
 
-        {/* Start Analysis Button */}
-        <section className="mb-6">
-          <button
-            onClick={handleScrapeAndAnalyze}
-            disabled={loading || !prompt.trim()}
-            className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-semibold flex items-center justify-center gap-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-glow"
-          >
-            {loading ? (
-              <Loader className="animate-spin w-5 h-5" />
-            ) : (
-              <Play className="w-5 h-5" />
-            )}
-            {loading ? "Analyzing..." : "Start Analysis"}
-          </button>
-        </section>
+     {/* Start Analysis Button */}
+<section className="mb-6">
+  <button
+    onClick={handleScrapeAndAnalyze}
+    disabled={loading || !prompt.trim()}
+    className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-semibold flex items-center justify-center gap-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-glow"
+  >
+    {loading ? (
+      <Loader className="animate-spin w-5 h-5" />
+    ) : (
+      <Play className="w-5 h-5" />
+    )}
+    {loading 
+      ? jobStatus === 'pending' 
+        ? "Starting analysis..." 
+        : jobStatus === 'processing'
+        ? "Analyzing (this may take 1-2 minutes)..."
+        : "Analyzing..."
+      : "Start Analysis"
+    }
+  </button>
+  
+  {loading && (
+    <div className="mt-3 text-center text-sm text-muted-foreground">
+      {jobStatus === 'pending' && " Queueing your analysis..."}
+      {jobStatus === 'processing' && " Processing posts and generating insights..."}
+    </div>
+  )}
+</section>
 
-        {/* Status Messages */}
         {(error || success) && (
           <section className="mb-6 space-y-3">
             {error && (
