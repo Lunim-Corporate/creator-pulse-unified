@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created job: ${job.id}`);
 
     // Trigger processing
-    const processUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/jobs/process`;
+    const processUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/jobs/process`;
     console.log(`🚀 Triggering processing at: ${processUrl}`);
     
     fetch(processUrl, {
