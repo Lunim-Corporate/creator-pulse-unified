@@ -44,13 +44,16 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Failed to queue:', error);
-    return NextResponse.json(
-      { error: 'Failed to start analysis' },
-      { status: 500 }
-    );
-  }
-}
+  console.error("Failed to queue:", error);
+
+  return NextResponse.json(
+    {
+      error: "Failed to start analysis",
+      details: error?.message ?? error,
+    },
+    { status: 500 }
+  );
+}}
 
 export const runtime = "nodejs";
 export const maxDuration = 10;
