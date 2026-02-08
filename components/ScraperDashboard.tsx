@@ -147,12 +147,9 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     setAnalysis(null);
-    setProgress(0);
-    setProgressMessage('Starting...');
 
     const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
 
-    setProgressMessage('Scraping posts...');
     const scrapeRes = await fetch("/api/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -162,7 +159,6 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     if (!scrapeRes.ok) throw new Error("Scraping failed");
 
     const { posts, failures } = await scrapeRes.json();
-    setProgress(20);
 
     if (failures?.length) {
       setSuccess(`Scraped ${posts.length} posts. Skipped: ${failures.join(", ")}`);
@@ -170,59 +166,27 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
       setSuccess(`Scraped ${posts.length} posts successfully`);
     }
 
-    setProgressMessage('Starting analysis...');
-    
-    const response = await fetch("/api/analyze-stream", {
+    // ✅ Use fast endpoint
+    const analysisRes = await fetch("/api/analyze-fast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        posts,
-        prompt,
-        mode,
-        options: {
-          enrichWithPerplexity: true, 
-          minEngagementTargets: 15,
-          includeTrends: false
-        }
-      })
+      body: JSON.stringify({ posts, prompt, mode })
     });
 
-    if (!response.ok) throw new Error("Analysis failed");
-
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) throw new Error("No response body");
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim());
-
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-
-          if (data.type === 'progress') {
-            setProgress(data.progress);
-            setProgressMessage(data.message);
-          } else if (data.type === 'complete') {
-            setAnalysis(data.result);
-            if (data.result._qualityScore) {
-              setQualityScore(data.result._qualityScore);
-            }
-            setSuccess("Analysis complete!");
-            setTimeout(() => scrollToSection("overview"), 500);
-          } else if (data.type === 'error') {
-            throw new Error(data.error);
-          }
-        } catch (parseError) {
-          console.warn('Failed to parse stream chunk:', line);
-        }
-      }
+    if (!analysisRes.ok) {
+      const errorData = await analysisRes.json();
+      throw new Error(errorData.error || "Analysis failed");
     }
+
+    const result = await analysisRes.json();
+    
+    setAnalysis(result);
+    if (result._qualityScore) {
+      setQualityScore(result._qualityScore);
+    }
+
+    setSuccess("Analysis complete!");
+    setTimeout(() => scrollToSection("overview"), 500);
 
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -232,8 +196,6 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     }
   } finally {
     setLoading(false);
-    setProgress(0);
-    setProgressMessage('');
   }
 };
 
