@@ -146,10 +146,9 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
   try {
     setLoading(true);
     setError(null);
-    setAnalysis(null);
 
+    // Scrape
     const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
-
     const scrapeRes = await fetch("/api/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -157,48 +156,54 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     });
 
     if (!scrapeRes.ok) throw new Error("Scraping failed");
+    const { posts } = await scrapeRes.json();
 
-    const { posts, failures } = await scrapeRes.json();
-
-    if (failures?.length) {
-      setSuccess(`Scraped ${posts.length} posts. Skipped: ${failures.join(", ")}`);
-    } else {
-      setSuccess(`Scraped ${posts.length} posts successfully`);
-    }
-
-    // ✅ Use fast endpoint
-    const analysisRes = await fetch("/api/analyze-fast", {
+    // Start analysis
+    const startRes = await fetch("/api/analyze/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ posts, prompt, mode })
     });
 
-    if (!analysisRes.ok) {
-      const errorData = await analysisRes.json();
-      throw new Error(errorData.error || "Analysis failed");
-    }
+    if (!startRes.ok) throw new Error("Failed to start analysis");
+    const { jobId } = await startRes.json();
 
-    const result = await analysisRes.json();
-    
-    setAnalysis(result);
-    if (result._qualityScore) {
-      setQualityScore(result._qualityScore);
-    }
+    setSuccess("Analysis started... checking status every 3 seconds");
 
-    setSuccess("Analysis complete!");
-    setTimeout(() => scrollToSection("overview"), 500);
+    // Poll for completion
+    pollJobStatus(jobId);
 
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      setError(err.message);
-    } else {
-      setError("Analysis failed");
-    }
-  } finally {
+  } catch (err: any) {
+    setError(err.message);
     setLoading(false);
   }
 };
 
+const pollJobStatus = async (jobId: string) => {
+  const interval = setInterval(async () => {
+    const res = await fetch(`/api/jobs/status?jobId=${jobId}`);
+    const job = await res.json();
+
+    if (job.status === 'completed') {
+      clearInterval(interval);
+      setAnalysis(job.result);
+      if (job.result._qualityScore) setQualityScore(job.result._qualityScore);
+      setSuccess("Analysis complete!");
+      setLoading(false);
+      setTimeout(() => scrollToSection("overview"), 500);
+    } else if (job.status === 'failed') {
+      clearInterval(interval);
+      setError(job.error || 'Analysis failed');
+      setLoading(false);
+    }
+  }, 3000);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    setError("Analysis timed out");
+    setLoading(false);
+  }, 600000); // 10 min timeout
+};
   const strategicPayload = useMemo(() => {
     if (!analysis?.strategic_recommendations) return null;
 
