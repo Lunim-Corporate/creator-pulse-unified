@@ -8,15 +8,18 @@ export async function POST(request: NextRequest) {
     
     console.log(`📨 Received process request for job: ${jobId}`);
 
-    // Immediately return success
-    const response = NextResponse.json({ success: true });
+    const processPromise = processJob(jobId, posts, prompt, mode, options);
+    
+    const extendedRequest = request as any;
+    if (typeof extendedRequest.waitUntil === 'function') {
+      console.log('✅ Using Vercel waitUntil for background processing');
+      extendedRequest.waitUntil(processPromise);
+    } else {
+      console.log('⚠️ waitUntil not available, processing in background via Promise');
+      processPromise.catch(err => console.error('Background process error:', err));
+    }
 
-    // Start processing AFTER response is sent (use setImmediate equivalent)
-    setTimeout(() => {
-      processJob(jobId, posts, prompt, mode, options);
-    }, 0);
-
-    return response;
+    return NextResponse.json({ success: true, jobId });
 
   } catch (error) {
     console.error('Process route error:', error);
@@ -30,15 +33,22 @@ async function processJob(
   prompt: string, 
   mode: string, 
   options: any
-) {
+): Promise<void> {
   try {
-    console.log(`🔄 Starting processing for job ${jobId}...`);
+    console.log(`🔄 Starting background processing for job ${jobId}...`);
+    const startTime = Date.now();
 
-    // Update to processing
-    await supabase
+    const { error: updateError } = await supabase
       .from('analysis_jobs')
-      .update({ status: 'processing', updated_at: new Date().toISOString() })
+      .update({ 
+        status: 'processing', 
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', jobId);
+
+    if (updateError) {
+      throw new Error(`Failed to update job status: ${updateError.message}`);
+    }
 
     console.log(`  ✓ Job ${jobId} status updated to processing`);
 
@@ -51,10 +61,10 @@ async function processJob(
       options
     });
 
-    console.log(`  ✓ Job ${jobId} analysis complete`);
+    const processingTime = Date.now() - startTime;
+    console.log(`  ✓ Job ${jobId} analysis complete in ${(processingTime / 1000).toFixed(1)}s`);
 
-    // Save result
-    await supabase
+    const { error: saveError } = await supabase
       .from('analysis_jobs')
       .update({
         status: 'completed',
@@ -64,18 +74,33 @@ async function processJob(
       })
       .eq('id', jobId);
 
-    console.log(`✅ Job ${jobId} completed successfully`);
+    if (saveError) {
+      throw new Error(`Failed to save result: ${saveError.message}`);
+    }
+
+    console.log(`✅ Job ${jobId} completed successfully (total time: ${(processingTime / 1000).toFixed(1)}s)`);
+    
   } catch (error: any) {
     console.error(`❌ Job ${jobId} failed:`, error);
+    console.error('Error stack:', error.stack);
     
-    await supabase
-      .from('analysis_jobs')
-      .update({
-        status: 'failed',
-        error: error.message || 'Unknown error',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', jobId);
+    // Try to update job to failed status
+    try {
+      await supabase
+        .from('analysis_jobs')
+        .update({
+          status: 'failed',
+          error: error.message || 'Unknown error',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+      
+      console.log(`  ✓ Job ${jobId} marked as failed in database`);
+    } catch (updateError) {
+      console.error(`  ✗ Failed to update job ${jobId} to failed status:`, updateError);
+    }
+    
+    throw error;
   }
 }
 
