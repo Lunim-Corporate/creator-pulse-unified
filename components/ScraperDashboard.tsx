@@ -39,6 +39,7 @@ import { generateSearchQueries } from "../lib/generateQueries";
 import { useSavedPrompts } from "../state/useSavedPrompts";
 import type { AnalysisResult } from "../lib/scrapers/types";
 
+
 import logo from "../public/assets/image-DNaKSDV2Vm6rz8yKS6WtuJwy4rLZwh.png";
 
 type SearchQueries = {
@@ -137,18 +138,21 @@ export function ScraperDashboard() {
     }
   };
 
-const [jobId, setJobId] = useState<string | null>(null);
-const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'processing' | 'completed' | 'failed'>('idle');
+
+const [progress, setProgress] = useState<number>(0);
+const [progressMessage, setProgressMessage] = useState<string>('');
 
 const handleScrapeAndAnalyze = async (): Promise<void> => {
   try {
     setLoading(true);
     setError(null);
     setAnalysis(null);
-    setJobStatus('pending');
+    setProgress(0);
+    setProgressMessage('Starting...');
 
     const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
 
+    setProgressMessage('Scraping posts...');
     const scrapeRes = await fetch("/api/scrape", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -157,7 +161,8 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
 
     if (!scrapeRes.ok) throw new Error("Scraping failed");
 
-    const { posts, failures, stats, metadata } = await scrapeRes.json();
+    const { posts, failures } = await scrapeRes.json();
+    setProgress(20);
 
     if (failures?.length) {
       setSuccess(`Scraped ${posts.length} posts. Skipped: ${failures.join(", ")}`);
@@ -165,84 +170,71 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
       setSuccess(`Scraped ${posts.length} posts successfully`);
     }
 
-    const createJobRes = await fetch("/api/jobs/create", {
+    setProgressMessage('Starting analysis...');
+    
+    const response = await fetch("/api/analyze-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        posts, 
-        prompt, 
+      body: JSON.stringify({
+        posts,
+        prompt,
         mode,
         options: {
-          enrichWithPerplexity: true,
+          enrichWithPerplexity: true, 
           minEngagementTargets: 15,
-          includeTrends: true
+          includeTrends: false
         }
       })
     });
 
-    if (!createJobRes.ok) throw new Error("Failed to create analysis job");
+    if (!response.ok) throw new Error("Analysis failed");
 
-    const { jobId: newJobId } = await createJobRes.json();
-    setJobId(newJobId);
-    setSuccess("Analysis started... This may take 1-2 minutes.");
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
 
-    pollJobStatus(newJobId);
+    if (!reader) throw new Error("No response body");
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+
+          if (data.type === 'progress') {
+            setProgress(data.progress);
+            setProgressMessage(data.message);
+          } else if (data.type === 'complete') {
+            setAnalysis(data.result);
+            if (data.result._qualityScore) {
+              setQualityScore(data.result._qualityScore);
+            }
+            setSuccess("Analysis complete!");
+            setTimeout(() => scrollToSection("overview"), 500);
+          } else if (data.type === 'error') {
+            throw new Error(data.error);
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse stream chunk:', line);
+        }
+      }
+    }
 
   } catch (err: unknown) {
     if (err instanceof Error) {
       setError(err.message);
     } else {
-      setError("Failed to start analysis");
+      setError("Analysis failed");
     }
+  } finally {
     setLoading(false);
-    setJobStatus('failed');
+    setProgress(0);
+    setProgressMessage('');
   }
-};
-
-const pollJobStatus = async (jobId: string) => {
-  const pollInterval = setInterval(async () => {
-    try {
-      const statusRes = await fetch(`/api/jobs/status?jobId=${jobId}`);
-      
-      if (!statusRes.ok) {
-        clearInterval(pollInterval);
-        setError("Failed to check job status");
-        setLoading(false);
-        setJobStatus('failed');
-        return;
-      }
-
-      const job = await statusRes.json();
-      setJobStatus(job.status);
-
-      if (job.status === 'completed') {
-        clearInterval(pollInterval);
-        setAnalysis(job.result);
-        
-        if (job.result._qualityScore) {
-          setQualityScore(job.result._qualityScore);
-        }
-
-        setSuccess("Analysis complete!");
-        setLoading(false);
-        setTimeout(() => scrollToSection("overview"), 500);
-      } else if (job.status === 'failed') {
-        clearInterval(pollInterval);
-        setError(job.error || 'Analysis failed');
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('Polling error:', err);
-    }
-  }, 3000); 
-
-  setTimeout(() => {
-    clearInterval(pollInterval);
-    if (jobStatus !== 'completed') {
-      setError("Analysis timed out");
-      setLoading(false);
-    }
-  }, 600000);
 };
 
   const strategicPayload = useMemo(() => {
@@ -367,7 +359,7 @@ const pollJobStatus = async (jobId: string) => {
           </section>
         )} */}
 
-     {/* Start Analysis Button */}
+     {/* Start Analysis Button with Progress */}
 <section className="mb-6">
   <button
     onClick={handleScrapeAndAnalyze}
@@ -379,20 +371,21 @@ const pollJobStatus = async (jobId: string) => {
     ) : (
       <Play className="w-5 h-5" />
     )}
-    {loading 
-      ? jobStatus === 'pending' 
-        ? "Starting analysis..." 
-        : jobStatus === 'processing'
-        ? "Analyzing (this may take 1-2 minutes)..."
-        : "Analyzing..."
-      : "Start Analysis"
-    }
+    {loading ? progressMessage || "Analyzing..." : "Start Analysis"}
   </button>
   
-  {loading && (
-    <div className="mt-3 text-center text-sm text-muted-foreground">
-      {jobStatus === 'pending' && " Queueing your analysis..."}
-      {jobStatus === 'processing' && " Processing posts and generating insights..."}
+  {loading && progress > 0 && (
+    <div className="mt-3">
+      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+        <span>{progressMessage}</span>
+        <span>{progress}%</span>
+      </div>
+      <div className="w-full bg-muted rounded-full h-2">
+        <div 
+          className="bg-primary h-2 rounded-full transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
     </div>
   )}
 </section>

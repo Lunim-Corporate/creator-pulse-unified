@@ -184,7 +184,8 @@ if (options.enrichWithPerplexity && this.perplexity.isEnabled()) {
           automation_spots: analysis.automation_spots || [],
           next_steps: analysis.next_steps || [],
           engagement_targets: analysis.engagement_targets || [],
-          top_talking_points: analysis.top_talking_points || []
+          top_talking_points: analysis.top_talking_points || [],
+          _qualityScore: analysis._qualityScore || null, 
         };
       }
     } catch (parseError) {
@@ -703,6 +704,133 @@ private cleanMarkdown(text: string): string {
     .replace(/_([^_]+)_/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+async executeWithProgress(
+  input: AnalysisInput,
+  onProgress: (stage: string, progress: number) => void
+): Promise<AnalysisResult> {
+  const startTime = Date.now();
+  const options = {
+    enrichWithPerplexity: true,
+    minEngagementTargets: 15,
+    includeTrends: true,
+    ...input.options
+  };
+
+  try {
+    onProgress('Initializing analysis...', 25);
+
+    let clearContext: ClearPrompt | undefined = undefined;
+    if (input.prompt) {
+      try {
+        clearContext = await normalizeClearPrompt(input.prompt, input.mode);
+      } catch (error) {
+        console.warn('⚠️ CLEAR framework creation failed');
+      }
+    }
+
+    onProgress('Validating posts...', 30);
+
+    const validatedPosts = this.validatePosts(input.posts);
+    if (validatedPosts.length === 0) {
+      throw new AnalysisError('No valid posts to analyze');
+    }
+
+    onProgress('Extracting engagement targets...', 40);
+
+    const engagementTargets = this.extractEngagementTargets(
+      validatedPosts,
+      options.minEngagementTargets || 10,
+      input.mode
+    );
+
+    onProgress('Building analysis prompt...', 50);
+
+    const messages = AnalysisPromptBuilder.buildCompleteMessages(
+      input.mode,
+      validatedPosts,
+      engagementTargets,
+      clearContext,
+      undefined,
+      input.prompt
+    );
+
+    onProgress('Calling OpenAI... (this may take 30-60s)', 60);
+
+    const completion = await this.openai.chat.completions.create({
+      model: API_CONFIG.openai.model,
+      messages: messages as any,
+      temperature: API_CONFIG.openai.temperature,
+      max_tokens: 10000, 
+      response_format: { type: 'json_object' }
+    });
+
+    onProgress('Parsing results...', 80);
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new AnalysisError('OpenAI returned empty response');
+    }
+
+    let analysis;
+    try {
+      analysis = JSON.parse(content);
+    } catch (parseError) {
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[1]);
+      } else {
+        const fixedContent = this.attemptJsonFix(content);
+        analysis = JSON.parse(fixedContent || '{}');
+      }
+    }
+
+    analysis = {
+      content_performance_insights: analysis.content_performance_insights || [],
+      audience_analysis: analysis.audience_analysis || {
+        estimated_people_talking: 0,
+        audience_segments: [],
+        sentiment_summary: 'Unknown',
+        interest_drivers: []
+      },
+      strategic_recommendations: analysis.strategic_recommendations || [],
+      automation_spots: analysis.automation_spots || [],
+      next_steps: analysis.next_steps || [],
+      engagement_targets: analysis.engagement_targets || [],
+      top_talking_points: analysis.top_talking_points || [],
+      _qualityScore: analysis._qualityScore || null
+    };
+
+    onProgress('Calculating quality score...', 90);
+
+    const qualityScore = QualityMetrics.scoreAnalysis(analysis, clearContext);
+    analysis._qualityScore = qualityScore;
+
+    onProgress('Finalizing results...', 95);
+
+    const finalResult = this.postProcess(analysis, null, [], {
+      processingTime: Date.now() - startTime,
+      postsAnalyzed: validatedPosts.length,
+      perplexityUsed: false,
+      perplexityScrapedPosts: validatedPosts.filter(p => 
+        p.metadata?.source === 'perplexity'
+      ).length,
+      mode: input.mode
+    });
+
+    if (!finalResult._qualityScore && qualityScore) {
+      finalResult._qualityScore = qualityScore;
+    }
+
+    return finalResult;
+
+  } catch (error: any) {
+    console.error('Analysis failed:', error);
+    throw error instanceof AnalysisError 
+      ? error 
+      : new AnalysisError('Pipeline execution failed', { cause: error });
+  }
 }
 
 }
