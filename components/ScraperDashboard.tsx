@@ -181,7 +181,7 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
 
 const pollJobStatus = async (jobId: string) => {
   const interval = setInterval(async () => {
-    const res = await fetch(`/api/jobs/status?jobId=${jobId}`);
+    const res = await fetch(`/api/job/status?jobId=${jobId}`);
     const job = await res.json();
 
     if (job.status === 'completed') {
