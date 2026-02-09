@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-// import { verifySignature } from "@upstash/qstash/nextjs";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { AnalysisPipeline } from "@/lib/services/AnalysisPipeline";
 import { supabase } from "@/lib/supabase";
@@ -8,28 +7,25 @@ async function handler(request: NextRequest) {
   try {
     const { jobId, posts, prompt, mode } = await request.json();
 
-    console.log(`📥 Processing queued job: ${jobId}`);
+    console.log(` Processing queued job: ${jobId}`);
 
-    // Update to processing
     await supabase
       .from('analysis_jobs')
       .update({ status: 'processing' })
       .eq('id', jobId);
 
-    // Run analysis
     const pipeline = new AnalysisPipeline();
     const result = await pipeline.execute({
       posts,
       prompt,
       mode,
       options: {
-        enrichWithPerplexity: false,
+        enrichWithPerplexity: true,
         minEngagementTargets: 15,
-        includeTrends: false
+        includeTrends: true
       }
     });
 
-    // Save result
     await supabase
       .from('analysis_jobs')
       .update({
@@ -39,7 +35,7 @@ async function handler(request: NextRequest) {
       })
       .eq('id', jobId);
 
-    console.log(`✅ Job ${jobId} completed`);
+    console.log(` Job ${jobId} completed`);
 
     return NextResponse.json({ success: true });
 
@@ -61,9 +57,8 @@ async function handler(request: NextRequest) {
   }
 }
 
-// Wrap with signature verification
-// export const POST = verifySignature(handler);
+
 export const POST = verifySignatureAppRouter(handler);
 
 export const runtime = "nodejs";
-export const maxDuration = 300; // Will work because it's triggered by QStash
+export const maxDuration = 300; 

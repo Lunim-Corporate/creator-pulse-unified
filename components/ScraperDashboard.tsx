@@ -147,7 +147,6 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     setLoading(true);
     setError(null);
 
-    // Scrape
     const queries = searchQueries ?? await generateSearchQueries(prompt, mode);
     const scrapeRes = await fetch("/api/scrape", {
       method: "POST",
@@ -158,7 +157,6 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
     if (!scrapeRes.ok) throw new Error("Scraping failed");
     const { posts } = await scrapeRes.json();
 
-    // Start analysis
     const startRes = await fetch("/api/analyze/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -170,7 +168,6 @@ const handleScrapeAndAnalyze = async (): Promise<void> => {
 
     setSuccess("Analysis started... checking status every 3 seconds");
 
-    // Poll for completion
     pollJobStatus(jobId);
 
   } catch (err: any) {
@@ -202,7 +199,7 @@ const pollJobStatus = async (jobId: string) => {
     clearInterval(interval);
     setError("Analysis timed out");
     setLoading(false);
-  }, 600000); // 10 min timeout
+  }, 600000); 
 };
   const strategicPayload = useMemo(() => {
     if (!analysis?.strategic_recommendations) return null;
@@ -231,7 +228,6 @@ const pollJobStatus = async (jobId: string) => {
   return (
     <div className="min-h-screen bg-background">
       
-      {/* Sticky Navigation - Only shows when analysis is complete */}
       {analysis && (
         <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-lg border-b border-border shadow-glow">
           <div className="max-w-7xl mx-auto px-6 py-4">
